@@ -21,7 +21,7 @@ if not api_key:
 
 genai.configure(api_key=api_key)
 
-# --- CEREBRO MAESTRO DE WHITMAN AI (INSTRUCCIONES COMPLETAS DE LA GEMA) ---
+# --- CEREBRO MAESTRO DE WHITMAN AI ---
 SYSTEM_PROMPT = r"""
 CONFIGURACIÓN AVANZADA PARA GEMA WHITMAN AI - V2 (ECOSISTEMA VITAL 26)
 
@@ -89,22 +89,38 @@ Toda respuesta debe finalizar con:
 **Resultados potenciados por Whitman AI | Entrenado por: Walter Quintero (Coord. Innovación y Tecnología)**
 """
 
-# --- INICIALIZAR EL MODELO ---
+# --- DETECCIÓN Y CONEXIÓN ROBUSTA DEL MODELO ACTIVO ---
 @st.cache_resource
-def get_model():
-    # Intentar con gemini-1.5-flash primero
+def get_working_engine():
+    candidate_names = []
     try:
-        return genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
-            system_instruction=SYSTEM_PROMPT
-        )
+        for m in genai.list_models():
+            if "generateContent" in m.supported_generation_methods:
+                candidate_names.append(m.name)
     except Exception:
-        return genai.GenerativeModel(
-            model_name="gemini-1.5-pro",
-            system_instruction=SYSTEM_PROMPT
-        )
+        pass
+    
+    # Respaldos conocidos
+    for fb in ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-pro"]:
+        if fb not in candidate_names:
+            candidate_names.append(fb)
 
-model = get_model()
+    # Probar cuál modelo responde sin error 404
+    for model_name in candidate_names:
+        try:
+            test_m = genai.GenerativeModel(model_name=model_name)
+            test_m.generate_content("ping")
+            # Si no falló, asignamos las instrucciones maestras
+            return model_name, genai.GenerativeModel(
+                model_name=model_name,
+                system_instruction=SYSTEM_PROMPT
+            )
+        except Exception:
+            continue
+            
+    raise RuntimeError("No se encontró ningún modelo compatible habilitado en la API Key.")
+
+active_model_name, model = get_working_engine()
 
 # --- CONTROL DE ESTADO DE SESIÓN ---
 if "chat" not in st.session_state:
@@ -112,11 +128,12 @@ if "chat" not in st.session_state:
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- BARRA LATERAL INSTITUCIONAL ---
+# --- BARRA LATERAL ---
 with st.sidebar:
     st.header("🏫 Centro de Mando")
     st.markdown("**Liceo Moderno Walt Whitman**")
-    st.info("Ingresa tu código de docente (ej: `wq26`, `SLATORRE26`) o tu grado escolar (ej: `soy noveno`, `sena1`).")
+    st.caption(f"Motor activo: `{active_model_name}`")
+    st.info("Ingresa tu código de docente (ej: `wq26`, `SLATORRE26`) o tu rol (ej: `soy noveno`, `sena1`).")
     
     st.divider()
     if st.button("🗑️ Reiniciar Sesión / Nueva Consulta"):
@@ -131,12 +148,10 @@ for msg in st.session_state.messages:
 
 # --- ENTRADA DE MENSAJES ---
 if prompt := st.chat_input("Escribe tu código, rol o comando de planeación..."):
-    # Guardar y mostrar mensaje del usuario
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Respuesta de Whitman AI
     with st.chat_message("assistant"):
         with st.spinner("Whitman AI está procesando..."):
             try:
@@ -144,7 +159,7 @@ if prompt := st.chat_input("Escribe tu código, rol o comando de planeación..."
                 st.markdown(response.text)
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
             except Exception as e:
-                # Si la sesión interna se desincroniza, recreamos el chat de forma transparente
+                # Reintentar en caso de fallo de turno
                 st.session_state.chat = model.start_chat(history=[])
                 response = st.session_state.chat.send_message(prompt)
                 st.markdown(response.text)
