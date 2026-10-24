@@ -9,7 +9,7 @@ st.set_page_config(
 )
 
 # --- CABECERA INSTITUCIONAL ---
-st.title("🎓 Whitman AI - v2.5")
+st.title("🎓 Whitman AI - v3.0")
 st.subheader("Asistente Pedagógico Institucional | Liceo Moderno Walt Whitman")
 st.caption("Ecosistema Vital 26 • Entrenado por Walter Quintero (Coord. Innovación y Tecnología)")
 
