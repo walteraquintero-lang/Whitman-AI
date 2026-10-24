@@ -1,92 +1,95 @@
 import streamlit as st
 import google.generativeai as genai
 
-# --- CONFIGURACIÓN DE LA PÁGINA ---
 st.set_page_config(
-    page_title="Whitman AI - Asistente Escolar",
+    page_title="Whitman AI - Liceo Moderno Walt Whitman",
     page_icon="🎓",
-    layout="centered"
+    layout="wide"
 )
 
+# --- CABECERA INSTITUCIONAL ---
 st.title("🎓 Whitman AI")
-st.caption("Tu asistente escolar de cabecera. ¡Pregúntame sobre tus clases, proyectos o tareas!")
+st.subheader("Asistente Pedagógico Oficial - Liceo Moderno Walt Whitman")
+st.caption("Herramienta de apoyo para docentes, planeación curricular, proyectos y comunidad educativa.")
 
-# --- CONEXIÓN CON LA IA ---
+# --- CONEXIÓN ---
 api_key = st.secrets.get("GEMINI_API_KEY")
-
 if not api_key:
-    st.error("Falta configurar la clave GEMINI_API_KEY en los secretos.")
+    st.error("Falta configurar GEMINI_API_KEY en Secrets.")
     st.stop()
 
 genai.configure(api_key=api_key)
 
+# --- CEREBRO E INSTRUCCIONES DEL LICEO (PERSONALÍZALO AQUÍ) ---
 SYSTEM_PROMPT = """
-Eres Whitman AI, el asistente virtual oficial del colegio.
-- Tu tono es entusiasta, pedagógico, respetuoso y muy claro.
-- Tu objetivo es guiar a los estudiantes para que aprendan y piensen por sí mismos, no solo darles las respuestas directas.
-- Ayuda a profesores y padres con dudas sobre actividades y proyectos escolares.
-- Mantén siempre un entorno seguro para menores.
+Eres WHITMAN AI, el asistente pedagógico e institucional oficial del LICEO MODERNO WALT WHITMAN.
+
+TUS FUNCIONES PRINCIPALES:
+1. APOYO A DOCENTES Y PLANEACIONES:
+   - Ayudas a los profesores a estructurar planeaciones de clase, guías didácticas, proyectos de aula y evaluaciones.
+   - Te riges por los estándares educativos, Derechos Básicos de Aprendizaje (DBA) y las orientaciones del Liceo.
+   - Cuando te pidan una planeación, estructura siempre:
+     * Tema y Estándar/DBA
+     * Objetivo de aprendizaje
+     * Inicio / Exploración (saberes previos)
+     * Desarrollo / Conceptualización
+     * Cierre / Evaluación formativa y retroalimentación
+
+2. IDENTIDAD Y TONO:
+   - Tu tono es pedagógico, colaborativo, empático, profesional e inspirador (haciendo honor al espíritu de Walt Whitman y la filosofía del liceo).
+   - Siempre dispuesto a apoyar la labor docente y el aprendizaje integral de los estudiantes.
 """
 
-# Detectar y asignar el modelo estable de Google
+# Configuración del modelo (utiliza el modelo disponible)
 @st.cache_resource
-def get_model():
-    try:
-        available = [
-            m.name for m in genai.list_models()
-            if "generateContent" in m.supported_generation_methods
-        ]
-        # Priorizar gemini-2.0-flash, gemini-1.5-pro o el primero disponible
-        for preferred in ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-pro"]:
-            found = next((m for m in available if preferred in m), None)
-            if found:
-                return found, genai.GenerativeModel(model_name=found, system_instruction=SYSTEM_PROMPT)
-        # Si no, tomar el primero de la lista
-        first_model = available[0]
-        return first_model, genai.GenerativeModel(model_name=first_model, system_instruction=SYSTEM_PROMPT)
-    except Exception as e:
-        # Fallback estándar
-        return "gemini-1.5-pro", genai.GenerativeModel(model_name="gemini-1.5-pro", system_instruction=SYSTEM_PROMPT)
+def load_model():
+    return genai.GenerativeModel(
+        model_name="gemini-1.5-flash",
+        system_instruction=SYSTEM_PROMPT
+    )
 
-model_name, model = get_model()
+try:
+    model = load_model()
+except Exception:
+    model = genai.GenerativeModel(
+        model_name="gemini-1.5-pro",
+        system_instruction=SYSTEM_PROMPT
+    )
 
-# --- HISTORIAL DE CONVERSACIÓN ---
+# --- GESTIÓN DE SESIÓN Y CHAT ---
+if "chat" not in st.session_state:
+    st.session_state.chat = model.start_chat(history=[])
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Barra lateral para soporte y reinicio
+# Barra lateral para profesores
 with st.sidebar:
-    st.markdown(f"**Conectado a:** `{model_name}`")
-    if st.button("🗑️ Reiniciar conversación"):
+    st.header("🏫 Liceo Moderno Walt Whitman")
+    st.write("Bienvenido profesor/a. Whitman AI está listo para apoyarle en sus labores pedagógicas.")
+    st.divider()
+    if st.button("🗑️ Iniciar nueva consulta"):
+        st.session_state.chat = model.start_chat(history=[])
         st.session_state.messages = []
         st.rerun()
 
 # Mostrar mensajes anteriores
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+for msg in st.session_state.messages:
+    with st.chat_message(msg["role"]):
+        st.markdown(msg["content"])
 
-# --- ENTRADA DE MENSAJES ---
-if prompt := st.chat_input("Escribe tu pregunta aquí..."):
+# Entrada de mensaje
+if prompt := st.chat_input("Escribe tu solicitud (ej: 'Ayúdame a planear una clase de ciencias para grado 5°')..."):
+    # Mostrar mensaje usuario
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
+    # Respuesta de Whitman AI
     with st.chat_message("assistant"):
-        with st.spinner("Whitman AI está pensando..."):
+        with st.spinner("Whitman AI está estructurando tu solicitud..."):
             try:
-                # Construir el historial compatible de forma segura
-                chat_context = [{"role": "user", "parts": [SYSTEM_PROMPT]}]
-                for m in st.session_state.messages:
-                    role = "user" if m["role"] == "user" else "model"
-                    chat_context.append({"role": role, "parts": [m["content"]]})
-                
-                response = model.generate_content(chat_context)
-                
-                if response and response.text:
-                    st.markdown(response.text)
-                    st.session_state.messages.append({"role": "assistant", "content": response.text})
-                else:
-                    st.warning("No se recibió respuesta del modelo.")
+                response = st.session_state.chat.send_message(prompt)
+                st.markdown(response.text)
+                st.session_state.messages.append({"role": "assistant", "content": response.text})
             except Exception as e:
-                st.error(f"Error al responder: {str(e)}")
+                st.error(f"Ocurrió un error al responder: {str(e)}")
