@@ -29,4 +29,37 @@ Eres Whitman AI, el asistente virtual oficial del colegio.
 - Mantén siempre un entorno seguro para menores.
 """
 
-# Usamos el mode
+# Usamos el modelo exacto que tu cuenta Pro requiere
+model = genai.GenerativeModel(
+    model_name="gemini-3.8-flash",
+    system_instruction=SYSTEM_PROMPT
+)
+
+# --- MEMORIA DEL CHAT ---
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+# Mostrar historial
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# --- ENTRADA DE MENSAJES ---
+if prompt := st.chat_input("Escribe tu pregunta aquí..."):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    with st.chat_message("assistant"):
+        message_placeholder = st.empty()
+        try:
+            chat_history = [
+                {"role": "user" if m["role"] == "user" else "model", "parts": [m["content"]]}
+                for m in st.session_state.messages[:-1]
+            ]
+            chat = model.start_chat(history=chat_history)
+            response = chat.send_message(prompt)
+            message_placeholder.markdown(response.text)
+            st.session_state.messages.append({"role": "assistant", "content": response.text})
+        except Exception as e:
+            message_placeholder.error(f"Error al responder: {str(e)}")
