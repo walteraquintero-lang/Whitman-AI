@@ -30,8 +30,9 @@ Eres Whitman AI, el asistente virtual oficial del colegio.
 - Mantén siempre un entorno seguro para menores.
 """
 
+# Usamos el modelo más actualizado y compatible
 model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash",
+    model_name="gemini-1.5-flash-latest",
     system_instruction=SYSTEM_PROMPT
 )
 
@@ -52,14 +53,14 @@ if prompt := st.chat_input("Escribe tu pregunta aquí..."):
 
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
-        
-        chat_history = [
-            {"role": "user" if m["role"] == "user" else "model", "parts": [m["content"]]}
-            for m in st.session_state.messages[:-1]
-        ]
-        
-        chat = model.start_chat(history=chat_history)
-        response = chat.send_message(prompt)
-        
-        message_placeholder.markdown(response.text)
-        st.session_state.messages.append({"role": "assistant", "content": response.text})
+        try:
+            # Construir historial para la sesión
+            chat = model.start_chat(history=[
+                {"role": "user" if m["role"] == "user" else "model", "parts": [m["content"]]}
+                for m in st.session_state.messages[:-1]
+            ])
+            response = chat.send_message(prompt)
+            message_placeholder.markdown(response.text)
+            st.session_state.messages.append({"role": "assistant", "content": response.text})
+        except Exception as e:
+            message_placeholder.error(f"Error al responder: {str(e)}")
