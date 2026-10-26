@@ -8,6 +8,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
+import streamlit.components.v1 as components
 
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(
@@ -16,30 +17,31 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- ESTILOS INSTITUCIONALES ---
+# --- ESTILOS CSS INSTITUCIONALES ---
 st.markdown("""
 <style>
     .header-box {
         background: linear-gradient(135deg, #0f2042 0%, #1e3a8a 100%);
         border-left: 6px solid #f59e0b;
-        border-radius: 10px;
-        padding: 16px 20px;
+        border-radius: 12px;
+        padding: 20px 25px;
         margin-bottom: 20px;
         color: white;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
     }
-    .header-box h1 { margin: 0; font-size: 1.8rem; color: #ffffff; }
-    .header-box p { margin: 3px 0 0 0; color: #93c5fd; font-size: 0.9rem; }
+    .header-box h1 { margin: 0; font-size: 2rem; color: #ffffff; font-weight: 800; }
+    .header-box p { margin: 4px 0 0 0; color: #93c5fd; font-size: 0.95rem; }
     .badge-role {
         display: inline-block;
         background-color: #f59e0b;
         color: #0f2042;
         font-weight: 800;
-        padding: 4px 12px;
-        border-radius: 15px;
-        font-size: 0.75rem;
-        margin-top: 8px;
+        padding: 4px 14px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        margin-top: 10px;
         text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
     .stDownloadButton > button {
         width: 100%;
@@ -70,72 +72,82 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- CONEXIÓN A GOOGLE ---
+# --- CONEXIÓN DIRECTA Y ROBUSTA A GEMINI ---
 api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
-    st.error("Falta configurar GEMINI_API_KEY en Secrets.")
+    st.error("Falta configurar GEMINI_API_KEY en Secrets de Streamlit.")
     st.stop()
 
 genai.configure(api_key=api_key)
 
-# --- DETECCIÓN DEL MOTOR 3.8 / MODERNO ---
+# Inicialización directa del modelo sin bloqueos de bucle
 @st.cache_resource
-def get_clean_model():
-    candidates = ["models/gemini-3.8-flash", "gemini-3.8-flash", "models/gemini-2.0-flash", "gemini-2.0-flash"]
-    try:
-        for m in genai.list_models():
-            if "generateContent" in m.supported_generation_methods and m.name not in candidates:
-                candidates.append(m.name)
-    except Exception:
-        pass
-        
-    for mod_name in candidates:
+def load_llm():
+    # Modelos autorizados en orden de preferencia
+    for m_name in ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-pro"]:
         try:
-            m = genai.GenerativeModel(mod_name)
-            m.generate_content("ping")
-            return mod_name, m
+            m = genai.GenerativeModel(m_name)
+            return m_name, m
         except Exception:
             continue
-    raise RuntimeError("No se pudo iniciar el modelo de Google.")
+    # Fallback directo
+    return "gemini-1.5-flash", genai.GenerativeModel("gemini-1.5-flash")
 
-model_name, active_model = get_clean_model()
+model_name, active_model = load_llm()
 
-# --- GENERADOR DE IMÁGENES OFICIAL GOOGLE IMAGEN 3 ---
-def generate_google_image(prompt_text):
-    try:
-        imagen = genai.ImageGenerationModel("imagen-3.0-generate-002")
-        result = imagen.generate_images(
-            prompt=prompt_text,
-            number_of_images=1,
-            aspect_ratio="16:9"
-        )
-        for img in result.images:
-            return img._image_bytes
-    except Exception:
-        return None
+# --- BASE DE CONOCIMIENTO INSTITUCIONAL MAESTRA ---
+INSTITUTIONAL_CORE = r"""
+ERES WHITMAN AI: EL ASISTENTE PEDAGÓGICO, ESTRATÉGICO Y MULTIMODAL DEL LICEO MODERNO WALT WHITMAN (BOGOTÁ, BARRIO VILLA MAYOR).
+Entrenado por: Walter Quintero (Coordinador de Innovación y Tecnología).
 
-# --- GENERADOR DE TARJETA VISUAL INSTITUCIONAL (HTML/CSS) ---
-def render_invitation_card(title, subtitle, date_info, location, protocol):
-    return f"""
-    <div style="background: linear-gradient(135deg, #0f2042 0%, #1e3a8a 100%); 
-                border: 3px solid #f59e0b; border-radius: 12px; padding: 24px; 
-                color: white; text-align: center; max-width: 680px; margin: 15px auto; 
-                box-shadow: 0 8px 25px rgba(0,0,0,0.4);">
-        <p style="color: #f59e0b; font-weight: 800; font-size: 0.85rem; letter-spacing: 2px; margin: 0;">LICEO MODERNO WALT WHITMAN</p>
-        <p style="color: #93c5fd; font-size: 0.8rem; margin: 2px 0 12px 0;">ECOSISTEMA VITAL 26 • PROYECTO PRODUCTIVO SENA</p>
-        <hr style="border: 0; border-top: 1px solid rgba(245, 158, 11, 0.4); margin: 10px 0;">
-        <h2 style="color: #ffffff; font-size: 1.4rem; margin: 8px 0;">{title}</h2>
-        <p style="color: #e2e8f0; font-size: 0.95rem; margin-bottom: 15px;">{subtitle}</p>
-        <div style="background: rgba(15, 32, 66, 0.7); border-radius: 8px; padding: 12px; margin: 10px 0; border: 1px solid rgba(59, 130, 246, 0.4); text-align: left;">
-            <p style="margin: 4px 0; font-size: 0.85rem;">📅 <b>Fecha:</b> {date_info}</p>
-            <p style="margin: 4px 0; font-size: 0.85rem;">📍 <b>Lugar:</b> {location}</p>
-            <p style="margin: 4px 0; font-size: 0.85rem;">👔 <b>Protocolo:</b> {protocol}</p>
+1. IDENTIDAD INSTITUCIONAL:
+- Lema: "El arte de la educación es el arte de despertar la curiosidad." — Walt Whitman
+- Misión: Formar estudiantes que crezcan cada día, sean felices y emprendan sus sueños con habilidades para el siglo XXI.
+- Ubicación / Aula Extendida: Calle 38 Bis Sur # 34D-29, Villa Mayor. Articulación con Parque Villa Mayor, Centro Comercial Centro Mayor y entorno barrial.
+
+2. ECOSISTEMA VITAL 2026 (LOS 4 MOTORES ESTRATÉGICOS):
+- Motor 1: Transformación Académica ("Tejiendo Saberes"): Enfoque Reggio Emilia (Cien Lenguajes de la infancia, el ambiente como Tercer Maestro), Educación Holística y Aprendizaje Basado en Proyectos (ABP).
+- Motor 2: Bienestar Integral ("Cátedra de Emocionalidad"): Ley 2503/2025. Malla curricular por ciclos (Ciclo 1: Reconocimiento/Calma; Ciclo 2: Frustración/Asertividad; Ciclo 3: Riesgos/Decisiones; Ciclo 4: Liderazgo/Proyecto de Vida). Justicia Restaurativa y Rincones de Calma.
+- Motor 3: Ciudadanía Global (ODS y Psicoorientación): Conexión con Agenda 2030 (ODS 2, 6, 12, 16). Inmersión bilingüe y proyecto de vida STEM/Verde (ODS 8).
+- Motor 4: Innovación Tecnológica (IA como Atelier Digital): La IA no es sustituto sino copiloto y socio metodológico. Metodología Sándwich (Pan humano - Jamón IA - Pan humano).
+
+3. PROYECTO DE BILINGÜISMO (CIUDADANOS DEL MUNDO):
+- Liderado por Marcela Santana y Natalia Cruz. Inmersión internacional en Toronto, Canadá.
+- Pruebas internacionales TOEFL Junior (Nivel B1/B2 en 11°). Singing Fest y Spelling Bee.
+- En Science (1° a 5°) y Ciudadanos del Mundo: 100% en inglés técnico (Technical Science English), metodología 70/30 (30% Explicación, 70% Speaking/Listening) e integración de ODS.
+
+4. ARTICULACIÓN MEDIA TÉCNICA SENA Y WHITMAN STUDIO:
+- Programa: Técnico en Integración de Contenidos Digitales (Grados 10° y 11°). Doble titulación.
+- 9 Fases del Proyecto Productivo (Reto 5: Investigación de Mercados, Buyer Persona, etc.).
+- Estándar Walter Quintero: Proyectos vectoriales estrictos en Adobe Illustrator (.AI) en 3 capas ([Fondos], [Vectores], [Textos]), tipografías a curvas, sin bitmaps pixelados.
+- Whitman Studio: Semillero creativo de producción audiovisual, branding, hooks virales y fotografía escolar.
+
+5. SIEE (EVALUACIÓN) Y MANUAL DE CONVIVENCIA:
+- Evaluación cualitativa: Superior, Alto, Básico y Bajo (Cero promedios numéricos).
+- La sustentación oral vale el 60% de la evaluación; el entregable escrito el 40%.
+- Faltas Tipo I (Leves), Tipo II (Graves) y Tipo III (Gravísimas) con estricto debido proceso.
+- Póliza de accidentes escolares: SURA (Código convenio: 2005341).
+
+6. DIRECTIVAS DE GENERACIÓN MULTIMODAL:
+- Si el usuario solicita un MAPA, DIAGRAMA O FLUJO: Genera un bloque de código Mermaid (```mermaid ... ```) para que se renderice visualmente.
+- Si solicita AUDIO O SONIDO: Diseña el guion técnico con efectos de sonido (SFX), tiempos, y prompts musicales listos para Suno o Udio.
+- Si solicita COMUNICADOS O TARJETAS: Redáctalos con toda la formalidad institucional, orden del día, fecha, lugar (Teatro Villa Mayor) y firmas correspondientes.
+- Si solicita PLANEACIONES: Estructura encabezado, DBA, momentos de clase de 40-45 min, páginas del libro y módulo PIAR.
+- NUNCA generes notas preliminares en inglés ("Target audience", "Context", "Self-correction"). Entrega directamente el producto solicitado.
+"""
+
+# --- PARSEADOR DE DIAGRAMAS MERMAID ---
+def render_mermaid(text):
+    mermaid_matches = re.findall(r"```mermaid\n([\s\S]*?)\n```", text)
+    for code in mermaid_matches:
+        html_code = f"""
+        <div class="mermaid" style="background:#0f2042; padding:15px; border-radius:10px; border:1px solid #f59e0b;">
+            {code}
         </div>
-        <p style="color: #f59e0b; font-size: 0.75rem; margin-top: 10px; font-style: italic;">
-            "El arte de la educación es el arte de despertar la curiosidad." — Walt Whitman
-        </p>
-    </div>
-    """
+        <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({{startOnLoad:true, theme:'dark'}});</script>
+        """
+        components.html(html_code, height=350, scrolling=True)
 
 # --- GENERADORES DE ARCHIVOS ---
 def generate_pdf_reportlab(text):
@@ -156,7 +168,8 @@ def generate_pdf_reportlab(text):
             Spacer(1, 4)
         ]
         
-        clean_text = re.sub(r'[^\x00-\x7F\xC0-\xFF]+', ' ', text)
+        clean_text = re.sub(r'```mermaid[\s\S]*?```', '', text)
+        clean_text = re.sub(r'[^\x00-\x7F\xC0-\xFF]+', ' ', clean_text)
         lines = clean_text.split("\n")
         i = 0
         while i < len(lines):
@@ -206,7 +219,7 @@ def generate_docx(text):
     try:
         doc = Document()
         doc.add_heading("Liceo Moderno Walt Whitman", level=0)
-        doc.add_paragraph("Ecosistema Vital 26 • Formación Institucional")
+        doc.add_paragraph("Ecosistema Vital 26 • Formación Pedagógica Institucional")
         doc.add_paragraph("--------------------------------------------------")
         for line in text.split("\n"):
             clean = line.strip()
@@ -228,7 +241,7 @@ def generate_pptx(text):
     try:
         prs = Presentation()
         title_slide = prs.slides.add_slide(prs.slide_layouts[0])
-        title_slide.shapes.title.text = "Whitman AI - Presentación"
+        title_slide.shapes.title.text = "Whitman AI - Material Institucional"
         title_slide.placeholders[1].text = "Liceo Moderno Walt Whitman\nEcosistema Vital 26"
         sections = text.split("##")
         for sec in sections[1:7]:
@@ -251,131 +264,117 @@ def generate_pptx(text):
 # --- ESTADOS DE SESIÓN ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
-if "active_role" not in st.session_state:
-    st.session_state.active_role = "ADMINISTRACIÓN / INNOVACIÓN"
+if "user_role" not in st.session_state:
+    st.session_state.user_role = "Comunidad Educativa General"
 
-# --- HEADER PRINCIPAL ---
+# --- CABECERA PRINCIPAL ---
 st.markdown(f"""
 <div class="header-box">
     <h1>🎓 Whitman AI • Ecosistema Vital 26</h1>
-    <p>Liceo Moderno Walt Whitman | Asistente Integral Escolar</p>
-    <div class="badge-role">{st.session_state.active_role}</div>
+    <p>Liceo Moderno Walt Whitman & Whitman Studio | Centro Pedagógico e Institucional</p>
+    <div class="badge-role">{st.session_state.user_role}</div>
 </div>
 """, unsafe_allow_html=True)
 
-# --- SIDEBAR ---
+# --- BARRA LATERAL ---
 with st.sidebar:
-    st.header("🏫 Centro de Control")
-    st.caption(f"Motor activo: `{model_name}`")
+    st.header("🏫 Centro de Mando")
+    st.caption(f"Motor Conectado: `{model_name}`")
+    st.markdown("### Selecciona o valida tu rol:")
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("👑 Walter Q."):
+            st.session_state.user_role = "Coordinador de Innovación y Tecnología"
+            st.session_state.messages.append({"role": "assistant", "content": "¡Bienvenido, Walter! Entorno de Administración, Whitman Studio y Ecosistema Vital activo."})
+            st.rerun()
+        if st.button("🚀 SENA 11°"):
+            st.session_state.user_role = "Aprendiz SENA - Fase 2 (11°)"
+            st.session_state.messages.append({"role": "assistant", "content": "¡Bienvenido, Aprendiz SENA! Laboratorio de Proyectos Productivos, Retos y Adobe Illustrator listo."})
+            st.rerun()
+    with c2:
+        if st.button("🔬 Science"):
+            st.session_state.user_role = "Docente Science / Ciudadanos del Mundo"
+            st.session_state.messages.append({"role": "assistant", "content": "¡Welcome Teacher! Formato bilingüe 70/30, ODS y estándares MCER activos."})
+            st.rerun()
+        if st.button("🏡 Familias"):
+            st.session_state.user_role = "Padres de Familia"
+            st.session_state.messages.append({"role": "assistant", "content": "¡Bienvenidos Padres y Madres Liceístas! Espacio de orientación, convivencia y eventos escolares."})
+            st.rerun()
     st.divider()
-    if st.button("🗑️ Reiniciar Sesión"):
+    if st.button("🗑️ Nueva Conversación"):
         st.session_state.messages = []
+        st.session_state.user_role = "Comunidad Educativa General"
         st.rerun()
 
-# --- MOSTRAR CONVERSACIÓN ---
+# --- HISTORIAL DE CONVERSACIÓN ---
 for idx, msg in enumerate(st.session_state.messages):
     with st.chat_message(msg["role"]):
-        content_text = msg["content"]
-        st.markdown(content_text)
+        st.markdown(msg["content"])
         
-        # Tarjeta visual maquetada si aplica
-        if "card_html" in msg and msg["card_html"]:
-            st.markdown(msg["card_html"], unsafe_allow_html=True)
-            
-        # Imagen binaria de Google Imagen 3 si aplica
-        if "img_bytes" in msg and msg["img_bytes"]:
-            st.image(msg["img_bytes"], caption="🎨 Ilustración Generada por Google Imagen 3", use_container_width=True)
+        # Renderizar diagramas Mermaid si los hay
+        if "```mermaid" in msg["content"]:
+            render_mermaid(msg["content"])
             
         # Botones de exportación al final
-        if msg["role"] == "assistant" and len(content_text) > 120:
+        if msg["role"] == "assistant" and len(msg["content"]) > 130:
             st.markdown("""
             <div style="margin-top: 15px; border-top: 1px solid #1e3a8a; padding-top: 8px;">
-                <b style="color: #93c5fd; font-size: 0.85rem;">📥 Exportar y Guardar Documento:</b>
+                <b style="color: #93c5fd; font-size: 0.85rem;">📥 Exportar a Formatos Oficiales:</b>
             </div>
             """, unsafe_allow_html=True)
             
-            c1, c2, c3, c4 = st.columns(4)
-            docx_bytes = generate_docx(content_text)
-            if docx_bytes:
-                with c1:
-                    st.download_button("📄 Word (.docx)", docx_bytes, f"Whitman_{idx}.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", key=f"docx_{idx}")
-            pdf_bytes = generate_pdf_reportlab(content_text)
-            if pdf_bytes:
-                with c2:
-                    st.download_button("📑 PDF Oficial", pdf_bytes, f"Whitman_{idx}.pdf", "application/pdf", key=f"pdf_{idx}")
-            pptx_bytes = generate_pptx(content_text)
-            if pptx_bytes:
-                with c3:
-                    st.download_button("📊 Diapositivas (.pptx)", pptx_bytes, f"Whitman_{idx}.pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation", key=f"pptx_{idx}")
-            with c4:
+            b1, b2, b3, b4 = st.columns(4)
+            docx_data = generate_docx(msg["content"])
+            if docx_data:
+                with b1:
+                    st.download_button("📄 Word (.docx)", docx_data, f"Whitman_Doc_{idx}.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", key=f"docx_{idx}")
+            pdf_data = generate_pdf_reportlab(msg["content"])
+            if pdf_data:
+                with b2:
+                    st.download_button("📑 PDF Oficial", pdf_data, f"Whitman_Doc_{idx}.pdf", "application/pdf", key=f"pdf_{idx}")
+            pptx_data = generate_pptx(msg["content"])
+            if pptx_data:
+                with b3:
+                    st.download_button("📊 Diapositivas (.pptx)", pptx_data, f"Whitman_Doc_{idx}.pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation", key=f"pptx_{idx}")
+            with b4:
                 st.markdown('<a href="https://docs.new" target="_blank" class="docs-btn">🌐 Abrir en Google Docs</a>', unsafe_allow_html=True)
 
-# --- ENTRADA DE MENSAJES ---
-if prompt := st.chat_input("Escribe tu solicitud, redacta un comunicado, planeación o tarjeta..."):
+# --- CAJA DE ENTRADA UNIVERSAL ---
+if prompt := st.chat_input("Escribe cualquier solicitud (planeaciones, mapas, circulares, guías SENA, etc.)..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("Whitman AI está estructurando tu documento oficial..."):
+        with st.spinner("Whitman AI está estructurando tu solicitud con los estándares del Liceo..."):
             try:
-                master_query = f"""
-Eres Whitman AI, asistente pedagógico e institucional oficial del Liceo Moderno Walt Whitman (Villa Mayor, Bogotá).
-Entrenado por Walter Quintero (Coord. Innovación y Tecnología).
+                # Consulta contextualizada con la base de conocimiento institucional completa
+                query = f"""
+{INSTITUTIONAL_CORE}
 
-DIRECTIVAS INSTITUCIONALES:
-- Responde DIRECTAMENTE con el documento o diseño solicitado. Cero notas de pensamiento preliminares.
-- Si te piden una tarjeta o comunicado para las sustentaciones, incluye:
-  * Fecha: 29 de Octubre / Noviembre
-  * Lugar: Teatro Villa Mayor
-  * Asunto: Sustentación de Proyectos Productivos SENA Grado 11°
-  * Orden del día / Agenda en formato de tabla
-  * Protocolo formal de asistencia
-- Finaliza siempre con:
----
-> "El arte de la educación es el arte de despertar la curiosidad." — Walt Whitman
-Resultados potenciados por Whitman AI | Entrenado por: Walter Quintero (Coord. Innovación y Tecnología)
+ROL DEL USUARIO ACTUAL: {st.session_state.user_role}
 
 SOLICITUD:
 {prompt}
 """
-                res = active_model.generate_content(master_query)
-                ai_text = res.text.strip()
+                response = active_model.generate_content(query)
+                answer_text = response.text.strip()
                 
-                # Comprobar si requiere elementos visuales
-                p_low = prompt.lower()
-                is_invitation = any(k in p_low for k in ["tarjeta", "invitacion", "invitación"])
-                wants_artwork = any(k in p_low for k in ["imagen", "ilustracion", "dibujo", "poster"])
+                # Limpieza de notas internas si hubiese
+                if "User input:" in answer_text or "*Target Audience:" in answer_text:
+                    cut = answer_text.rfind("---")
+                    if cut != -1:
+                        answer_text = answer_text[cut:].strip()
                 
-                card_html = None
-                img_bytes = None
+                st.markdown(answer_text)
                 
-                # 1. Renderizar tarjeta gráfica si es invitación
-                if is_invitation:
-                    card_html = render_invitation_card(
-                        title="SUSTENTACIÓN DE PROYECTOS PRODUCTIVOS SENA",
-                        subtitle="Promoción Grado 11° • Ecosistema Vital 26",
-                        date_info="29 de Octubre | 8:00 AM - 1:00 PM",
-                        location="Teatro Villa Mayor (Bogotá D.C.)",
-                        protocol="Traje Formal / Uniforme de Gala"
-                    )
-                
-                # 2. Generar imagen real con Google Imagen 3 si pidieron arte gráfico
-                if wants_artwork:
-                    img_bytes = generate_google_image("Official luxury invitation poster for student project defense at theater, navy blue and gold accents, minimal clean vector layout, 8k")
-                
-                st.markdown(ai_text)
-                if card_html:
-                    st.markdown(card_html, unsafe_allow_html=True)
-                if img_bytes:
-                    st.image(img_bytes, caption="🎨 Ilustración Generada por Google Imagen 3", use_container_width=True)
+                # Renderizar diagrama si la respuesta generó uno
+                if "```mermaid" in answer_text:
+                    render_mermaid(answer_text)
                     
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": ai_text,
-                    "card_html": card_html,
-                    "img_bytes": img_bytes
-                })
+                st.session_state.messages.append({"role": "assistant", "content": answer_text})
                 st.rerun()
             except Exception as e:
-                st.error(f"Error al procesar: {str(e)}")
+                err_msg = f"Error al generar respuesta: {str(e)}"
+                st.error(err_msg)
+                st.session_state.messages.append({"role": "assistant", "content": err_msg})
