@@ -24,7 +24,7 @@ st.markdown("""
         background: linear-gradient(135deg, #0f2042 0%, #1e3a8a 100%);
         border-left: 6px solid #f59e0b;
         border-radius: 10px;
-        padding: 18px 22px;
+        padding: 16px 20px;
         margin-bottom: 20px;
         color: white;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
@@ -36,20 +36,11 @@ st.markdown("""
         background-color: #f59e0b;
         color: #0f2042;
         font-weight: 800;
-        padding: 4px 14px;
+        padding: 4px 12px;
         border-radius: 15px;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
         margin-top: 8px;
         text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    .welcome-card {
-        background-color: #111e38;
-        border: 1px solid #1e3a8a;
-        border-radius: 8px;
-        padding: 18px;
-        margin: 10px 0;
-        border-left: 5px solid #3b82f6;
     }
     .stDownloadButton > button {
         width: 100%;
@@ -58,96 +49,78 @@ st.markdown("""
         color: #ffffff;
         font-weight: 600;
         border-radius: 6px;
-        padding: 8px;
+        padding: 6px;
     }
     .stDownloadButton > button:hover {
         background-color: #f59e0b;
         color: #0f2042;
     }
+    .docs-btn {
+        display: inline-block;
+        width: 100%;
+        text-align: center;
+        background-color: #1e3a8a;
+        color: #ffffff !important;
+        border: 1px solid #60a5fa;
+        border-radius: 6px;
+        padding: 6px;
+        font-weight: 600;
+        text-decoration: none;
+    }
+    .docs-btn:hover {
+        background-color: #2563eb;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# --- MATRIZ DE AUTENTICACIÓN Y PERFILES (EN PYTHON PURO - CERO FUGAS DE IA) ---
+# --- MATRIZ DE PERFILES ---
 PROFILES = {
-    # Administrador
     "wq26": {
         "role_name": "👑 Coordinador de Innovación & Tecnología",
         "badge": "ADMINISTRACIÓN / INNOVACIÓN",
-        "welcome": "¡Bienvenido, Ing. Walter Quintero! Centro de Control y Gestión Tecnológica activo. Tienes acceso completo a la configuración pedagógica, herramientas audiovisuales de Whitman Studio y protocolos de IA institucional.",
-        "prompt_mode": "Eres el copiloto técnico del Coordinador Walter Quintero. Tono profesional, estratégico, técnico y de alta innovación educativa."
-    },
-    # Docentes Clave
-    "slatorre26": {
-        "role_name": "🔬 Teacher Sonia Latorre (Science Primaria)",
-        "badge": "DOCENTE BILINGÜE - SCIENCE",
-        "welcome": "¡Welcome, Teacher Sonia! Tus planeaciones de Science (1° a 5°) están configuradas al estándar bilingüe de Ciudadanos del Mundo (Modelo Natalia Cruz). Todo el contenido se generará 100% en Technical Science English bajo la metodología 70/30 con vinculación a ODS.",
-        "prompt_mode": "Usuario es Sonia Latorre. Asignatura: Science. Todas las planeaciones DEBEN ser 100% en inglés, metodología 70/30, formato Ciudadanos del Mundo, ODS e IA task."
-    },
-    "natac26": {
-        "role_name": "🌍 Docente Natalia Cruz (Ciudadanos del Mundo)",
-        "badge": "DOCENTE BILINGÜE - CIUDADANOS",
-        "welcome": "¡Bienvenida, Teacher Natalia! Tu entorno para Ciudadanos del Mundo (5°, 6° y 7°A) está activo con la matriz de 6 momentos bilingüe y producción oral activa.",
-        "prompt_mode": "Usuario es Natalia Cruz. Enfoque: Ciudadanos del Mundo bilingüe, 70/30 y desarrollo global."
-    },
-    # Aprendices SENA y Whitman Studio
-    "sena1": {
-        "role_name": "🎨 Aprendiz SENA - Fase 1 (Grado 10°)",
-        "badge": "APRENDIZ SENA - FASE 1",
-        "welcome": "¡Acceso Concedido, Aprendiz SENA! 🎨 Tu laboratorio técnico de Diseño Multimedia está activo. Recuerda los estándares del Coordinador Walter Quintero: proyectos vectoriales puros en Adobe Illustrator (.AI), mesas de trabajo organizadas en 3 capas ([Fondos], [Vectores], [Textos]) y fuentes convertidas a curvas.",
-        "prompt_mode": "Usuario es Aprendiz SENA Fase 1 (10°). Foco en diseño en Adobe Illustrator, capas, curvas, teoría del color y guías de póster."
+        "welcome": "¡Bienvenido, Ing. Walter Quintero! Centro de Control institucional activo. Tienes acceso completo a diseño pedagógico, proyectos SENA y herramientas audiovisuales de Whitman Studio.",
+        "prompt_mode": "Usuario: Coordinador Walter Quintero. Tono estratégico, directivo, técnico y de innovación escolar."
     },
     "sena2": {
-        "role_name": "🚀 Aprendiz SENA - Fase 2 (Grado 11° / Proyecto Productivo)",
-        "badge": "APRENDIZ SENA - FASE 2 (PROYECTO)",
-        "welcome": "¡Acceso Concedido, Aprendiz SENA! 🚀 Tu entorno para el Proyecto Productivo (Fase 2) está activo. Estoy listo para asesorar la investigación de mercados, la matriz de segmentación del Reto 5 (Demográfica, Geográfica, Psicográfica y Conductual) y la ficha del Buyer Persona.",
-        "prompt_mode": "Usuario es Aprendiz SENA Fase 2 (11°). Asesoría en Proyecto Productivo, Reto 5, matriz de segmentación para Mesa 1 y Buyer Persona para Mesa 2 en Illustrator."
+        "role_name": "🚀 Aprendiz SENA - Fase 2 (11° / Proyecto)",
+        "badge": "APRENDIZ SENA - FASE 2",
+        "welcome": "¡Acceso Concedido, Aprendiz SENA! 🚀 Tu entorno para el Proyecto Productivo (Fase 2) está listo. Podemos estructurar matrices de segmentación para Illustrator, Buyer Persona, tarjetas de invitación o piezas gráficas para las sustentaciones.",
+        "prompt_mode": "Usuario: Aprendiz SENA Fase 2 (11°). Foco en Proyecto Productivo, sustentaciones, Adobe Illustrator, matrices de mercado y piezas gráficas."
     },
-    "ws26_studio": {
-        "role_name": "🎬 Integrante de Whitman Studio",
-        "badge": "WHITMAN STUDIO CREATIVO",
-        "welcome": "¡Acceso al Semillero Creativo Concedido! 🎥 Tu espacio para storytelling, hooks virales, guiones audiovisuales, diseño de marca y producción digital está listo.",
-        "prompt_mode": "Usuario es integrante de Whitman Studio. Rol de Director de Arte y mentor audiovisual escolar."
-    },
-    # Padres de Familia
     "padre": {
         "role_name": "🏡 Familia Whitman",
         "badge": "PADRES DE FAMILIA",
-        "welcome": "¡Estimada Familia del Liceo Moderno Walt Whitman, bienvenidos! 🌟 Este es su espacio de orientación institucional. Estoy aquí para acompañarles con información sobre el modelo pedagógico, actividades escolares, convivencia y apoyo en el proceso formativo de sus hijos.",
-        "prompt_mode": "Hablas con un padre de familia. Sé extraordinariamente cálido, respetuoso, empático y claro. No uses jerga técnica de planeación docente. Orienta sobre la formación integral de los estudiantes."
+        "welcome": "¡Estimada Familia del Liceo Moderno Walt Whitman, bienvenidos! 🌟 Este es su espacio de orientación escolar. ¿En qué información sobre eventos, sustentaciones o vida escolar podemos orientarle hoy?",
+        "prompt_mode": "Hablas con un padre de familia. Tono institucional, cálido, claro y formal. Orienta sobre eventos, horarios, sustentaciones y vida escolar sin jerga técnica."
     }
 }
 
-# --- FUNCIÓN DE DETECCIÓN INTELIGENTE ---
+# --- DETECTOR INTELIGENTE DE IDENTIDAD (SIN FALSOS POSITIVOS) ---
 def check_user_identity(text):
     clean = text.lower().strip()
-    # Coincidencias directas
+    # Si contiene verbos de acción o es una frase larga de solicitud, NUNCA es un login
+    action_words = ["crea", "creemos", "haz", "diseña", "redacta", "planea", "escribe", "genera", "comunicado", "tarjeta", "invitacion", "invitación"]
+    if any(w in clean for w in action_words) or len(clean.split()) > 5:
+        return None
+    
     if "wq26" in clean:
         return PROFILES["wq26"]
-    elif "slatorre26" in clean or ("sonia" in clean and "latorre" in clean):
-        return PROFILES["slatorre26"]
-    elif "natac26" in clean:
-        return PROFILES["natac26"]
-    elif any(k in clean for k in ["sena 2", "sena2", "soy sena 2", "fase 2", "once sena"]):
+    elif any(k in clean for k in ["sena 2", "sena2", "soy sena 2", "fase 2"]):
         return PROFILES["sena2"]
-    elif any(k in clean for k in ["sena 1", "sena1", "soy sena 1", "fase 1", "decimo sena"]):
-        return PROFILES["sena1"]
-    elif "ws26" in clean or "studio" in clean:
-        return PROFILES["ws26_studio"]
-    elif any(k in clean for k in ["padre", "mama", "mamá", "papa", "papá", "acudiente", "familia"]):
+    elif clean in ["padre", "papa", "papá", "mama", "mamá", "soy padre", "acudiente"]:
         return PROFILES["padre"]
-    elif any(k in clean for k in ["noveno", "9°", "soy noveno", "grado 9"]):
-        return {
-            "role_name": "🎒 Estudiante de Grado 9°",
-            "badge": "ESTUDIANTE NOVENO",
-            "welcome": "¡Hola, estudiante de Noveno! 📘 Tu espacio de aprendizaje está activo. ¿En qué temática o proyecto te acompaño hoy?",
-            "prompt_mode": "Tutor pedagógico socrático para grado noveno. Explica paso a paso con paciencia, sin dar respuestas directas a tareas."
-        }
     return None
 
-# --- CONEXIÓN IA ---
+# --- GENERADOR DE IMÁGENES EDUCATIVAS ---
+def generate_image_url(prompt_text):
+    clean = re.sub(r'[^\w\s]', ' ', prompt_text).strip()
+    encoded = urllib.parse.quote(clean[:200])
+    return f"https://image.pollinations.ai/prompt/{encoded}?width=900&height=500&nologo=true"
+
+# --- CONEXIÓN IA CON SISTEMA DE RESPALDO (ANTI ERROR 500) ---
 api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
-    st.error("Falta configurar la clave GEMINI_API_KEY en Secrets.")
+    st.error("Falta configurar GEMINI_API_KEY en Secrets.")
     st.stop()
 
 genai.configure(api_key=api_key)
@@ -156,9 +129,11 @@ SYSTEM_BASE = """
 Eres Whitman AI, asistente pedagógico e institucional oficial del Liceo Moderno Walt Whitman (Villa Mayor, Bogotá).
 Diseñado y entrenado por: Walter Quintero (Coordinador de Innovación y Tecnología).
 
-REGLA CRÍTICA DE SALIDA:
-- NUNCA generes notas preliminares, ni "User input:", ni "Goal:", ni "Context:", ni listas de chequeo en inglés.
-- Responde DIRECTAMENTE con el contenido solicitado, estructurado con títulos limpios, tablas o viñetas.
+REGLAS DE GENERACIÓN DE CONTENIDO:
+1. Cuando te pidan un COMUNICADO: Redáctalo formalmente con número de circular, fecha, lugar (Teatro Villa Mayor), orden del día, recomendaciones y firma de Rectoría / Coordinación.
+2. Cuando te pidan una TARJETA DE INVITACIÓN: Diseña la estructura visual completa (Encabezado, Titular, Fecha, Hora, Lugar, Protocolo de vestimenta, Código de confirmación).
+3. Cuando te pidan PLANEACIONES O GUÍAS: Usa tablas estructuradas con los momentos de clase y parámetros institucionales.
+4. NUNCA generes notas preliminares en inglés ni textos de pensamiento.
 
 CIERRE OBLIGATORIO:
 ---
@@ -167,56 +142,38 @@ CIERRE OBLIGATORIO:
 **Resultados potenciados por Whitman AI | Entrenado por: Walter Quintero (Coord. Innovación y Tecnología)**
 """
 
-@st.cache_resource
-def get_engine():
-    candidate_names = []
-    try:
-        for m in genai.list_models():
-            if "generateContent" in m.supported_generation_methods:
-                candidate_names.append(m.name)
-    except Exception:
-        pass
-    for fb in ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-pro"]:
-        if fb not in candidate_names:
-            candidate_names.append(fb)
-    for model_name in candidate_names:
+def generate_ai_response(prompt_text, role_mode):
+    # Modelos de respaldo en caso de que uno reporte 500
+    models_to_try = ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash", "gemini-pro"]
+    full_query = f"[DIRECTIVA DE PERFIL: {role_mode}]\n\nSOLICITUD:\n{prompt_text}\n\nEntrega el documento completo, listo para uso institucional."
+    
+    for mod_name in models_to_try:
         try:
-            m = genai.GenerativeModel(model_name=model_name, system_instruction=SYSTEM_BASE)
-            m.generate_content("ping")
-            return model_name, m
+            m = genai.GenerativeModel(model_name=mod_name, system_instruction=SYSTEM_BASE)
+            res = m.generate_content(full_query)
+            if res and res.text:
+                return res.text.strip()
         except Exception:
             continue
-    raise RuntimeError("No se encontró ningún modelo compatible habilitado.")
+    raise RuntimeError("No se pudo obtener respuesta de los servidores de IA en este momento.")
 
-active_model_name, base_model = get_engine()
-
-# --- ESTADOS DE SESIÓN ---
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "active_profile" not in st.session_state:
-    st.session_state.active_profile = {
-        "role_name": "Comunidad Educativa General",
-        "badge": "VISITANTE GENERAL",
-        "prompt_mode": "Asistente institucional del colegio para toda la comunidad."
-    }
-
-# --- GENERADORES DE ARCHIVOS ---
+# --- GENERADORES DE ARCHIVOS (WORD, PDF, PPT) ---
 def generate_pdf_reportlab(text):
     try:
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36)
         styles = getSampleStyleSheet()
-        title_style = ParagraphStyle('LiceoTitle', fontName='Helvetica-Bold', fontSize=14, textColor=colors.HexColor("#0F2042"), alignment=1, spaceAfter=4)
-        sub_style = ParagraphStyle('LiceoSub', fontName='Helvetica', fontSize=8, textColor=colors.HexColor("#64748B"), alignment=1, spaceAfter=14)
-        h1_style = ParagraphStyle('LiceoH1', fontName='Helvetica-Bold', fontSize=10.5, textColor=colors.HexColor("#0F2042"), spaceBefore=10, spaceAfter=4)
-        body_style = ParagraphStyle('LiceoBody', fontName='Helvetica', fontSize=8.5, leading=11, textColor=colors.HexColor("#1E293B"))
-        th_style = ParagraphStyle('LiceoTH', fontName='Helvetica-Bold', fontSize=7.5, textColor=colors.white, alignment=1)
-        td_style = ParagraphStyle('LiceoTD', fontName='Helvetica', fontSize=7, leading=8.5, textColor=colors.HexColor("#0F172A"))
+        title_style = ParagraphStyle('Title', fontName='Helvetica-Bold', fontSize=13, textColor=colors.HexColor("#0F2042"), alignment=1, spaceAfter=4)
+        sub_style = ParagraphStyle('Sub', fontName='Helvetica', fontSize=8, textColor=colors.HexColor("#64748B"), alignment=1, spaceAfter=12)
+        h1_style = ParagraphStyle('H1', fontName='Helvetica-Bold', fontSize=10, textColor=colors.HexColor("#0F2042"), spaceBefore=8, spaceAfter=4)
+        body_style = ParagraphStyle('Body', fontName='Helvetica', fontSize=8.5, leading=11, textColor=colors.HexColor("#1E293B"))
+        th_style = ParagraphStyle('TH', fontName='Helvetica-Bold', fontSize=7.5, textColor=colors.white, alignment=1)
+        td_style = ParagraphStyle('TD', fontName='Helvetica', fontSize=7, leading=8.5, textColor=colors.HexColor("#0F172A"))
         
         story = [
             Paragraph("LICEO MODERNO WALT WHITMAN", title_style),
             Paragraph("Ecosistema Vital 26 • Formando Líderes Transformadores", sub_style),
-            Spacer(1, 6)
+            Spacer(1, 4)
         ]
         
         clean_text = re.sub(r'[^\x00-\x7F\xC0-\xFF]+', ' ', text)
@@ -229,17 +186,14 @@ def generate_pdf_reportlab(text):
                 while i < len(lines) and lines[i].strip().startswith("|") and lines[i].strip().endswith("|"):
                     row_str = lines[i].strip()
                     if not re.match(r"^\|(\s*[-:]+\s*\|)+$", row_str):
-                        cells = [c.strip() for c in row_str.split("|")[1:-1]]
-                        table_raw.append(cells)
+                        table_raw.append([c.strip() for c in row_str.split("|")[1:-1]])
                     i += 1
                 if table_raw:
                     num_cols = max(len(r) for r in table_raw)
                     col_w = 540 / max(num_cols, 1)
                     table_data = []
                     for r_idx, r in enumerate(table_raw):
-                        row_cells = []
-                        for c in r:
-                            row_cells.append(Paragraph(c[:180], th_style if r_idx == 0 else td_style))
+                        row_cells = [Paragraph(c[:180], th_style if r_idx == 0 else td_style) for c in r]
                         while len(row_cells) < num_cols:
                             row_cells.append(Paragraph("", td_style))
                         table_data.append(row_cells)
@@ -254,7 +208,7 @@ def generate_pdf_reportlab(text):
                         ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAFC")]),
                     ]))
                     story.append(t)
-                    story.append(Spacer(1, 5))
+                    story.append(Spacer(1, 4))
                 continue
             if line.startswith("#"):
                 story.append(Spacer(1, 4))
@@ -272,7 +226,7 @@ def generate_docx(text):
     try:
         doc = Document()
         doc.add_heading("Liceo Moderno Walt Whitman", level=0)
-        doc.add_paragraph("Ecosistema Vital 26 • Formación Pedagógica Institucional")
+        doc.add_paragraph("Ecosistema Vital 26 • Formación Institucional")
         doc.add_paragraph("--------------------------------------------------")
         for line in text.split("\n"):
             clean = line.strip()
@@ -314,6 +268,16 @@ def generate_pptx(text):
     except Exception:
         return None
 
+# --- ESTADOS DE SESIÓN ---
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "active_profile" not in st.session_state:
+    st.session_state.active_profile = {
+        "role_name": "Comunidad Educativa General",
+        "badge": "VISITANTE GENERAL",
+        "prompt_mode": "Asistente institucional del colegio para toda la comunidad."
+    }
+
 # --- HEADER PRINCIPAL ---
 st.markdown(f"""
 <div class="header-box">
@@ -325,29 +289,20 @@ st.markdown(f"""
 
 # --- BARRA LATERAL ---
 with st.sidebar:
-    st.header("🏫 Selector de Perfil")
-    st.caption("Selecciona tu rol para una experiencia adaptada:")
-    
-    col_a, col_b = st.columns(2)
-    with col_a:
-        if st.button("👑 Administrador"):
-            st.session_state.active_profile = PROFILES["wq26"]
-            st.session_state.messages.append({"role": "assistant", "content": PROFILES["wq26"]["welcome"]})
-            st.rerun()
-        if st.button("🚀 SENA 2 (11°)"):
-            st.session_state.active_profile = PROFILES["sena2"]
-            st.session_state.messages.append({"role": "assistant", "content": PROFILES["sena2"]["welcome"]})
-            st.rerun()
-    with col_b:
-        if st.button("🔬 Science Docente"):
-            st.session_state.active_profile = PROFILES["slatorre26"]
-            st.session_state.messages.append({"role": "assistant", "content": PROFILES["slatorre26"]["welcome"]})
-            st.rerun()
-        if st.button("🏡 Padre de Familia"):
-            st.session_state.active_profile = PROFILES["padre"]
-            st.session_state.messages.append({"role": "assistant", "content": PROFILES["padre"]["welcome"]})
-            st.rerun()
-            
+    st.header("🏫 Acceso Rápido")
+    st.caption("Cambia de rol con un solo clic:")
+    if st.button("👑 Administrador (wq26)"):
+        st.session_state.active_profile = PROFILES["wq26"]
+        st.session_state.messages.append({"role": "assistant", "content": PROFILES["wq26"]["welcome"]})
+        st.rerun()
+    if st.button("🚀 SENA 2 (Grado 11°)"):
+        st.session_state.active_profile = PROFILES["sena2"]
+        st.session_state.messages.append({"role": "assistant", "content": PROFILES["sena2"]["welcome"]})
+        st.rerun()
+    if st.button("🏡 Padre de Familia"):
+        st.session_state.active_profile = PROFILES["padre"]
+        st.session_state.messages.append({"role": "assistant", "content": PROFILES["padre"]["welcome"]})
+        st.rerun()
     st.divider()
     if st.button("🗑️ Reiniciar Sesión"):
         st.session_state.messages = []
@@ -364,15 +319,19 @@ for idx, msg in enumerate(st.session_state.messages):
         content_text = msg["content"]
         st.markdown(content_text)
         
-        # Botones de exportación al final de respuestas largas
-        if msg["role"] == "assistant" and len(content_text) > 150:
+        # Mostrar imagen generada si la tiene
+        if "image_url" in msg and msg["image_url"]:
+            st.image(msg["image_url"], caption="🎨 Propuesta Visual Diseñada para el Evento", use_container_width=True)
+            
+        # Botones de exportación al final
+        if msg["role"] == "assistant" and len(content_text) > 140:
             st.markdown("""
             <div style="margin-top: 15px; border-top: 1px solid #1e3a8a; padding-top: 8px;">
-                <b style="color: #93c5fd; font-size: 0.85rem;">📥 Descargar Documento Formateado:</b>
+                <b style="color: #93c5fd; font-size: 0.85rem;">📥 Exportar y Guardar Documento:</b>
             </div>
             """, unsafe_allow_html=True)
             
-            c1, c2, c3 = st.columns(3)
+            c1, c2, c3, c4 = st.columns(4)
             docx_bytes = generate_docx(content_text)
             if docx_bytes:
                 with c1:
@@ -385,54 +344,53 @@ for idx, msg in enumerate(st.session_state.messages):
             if pptx_bytes:
                 with c3:
                     st.download_button("📊 Diapositivas (.pptx)", pptx_bytes, f"Whitman_{idx}.pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation", key=f"pptx_{idx}")
+            with c4:
+                st.markdown('<a href="https://docs.new" target="_blank" class="docs-btn">🌐 Abrir en Google Docs</a>', unsafe_allow_html=True)
 
 # --- ENTRADA DE MENSAJES ---
-if prompt := st.chat_input("Escribe tu pregunta, solicitud o identifícate..."):
-    # 1. Mostrar mensaje del usuario
+if prompt := st.chat_input("Escribe tu solicitud, redacta un comunicado, planeación o tarjeta..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # 2. VALIDACIÓN DIRECTA EN PYTHON (CERO PENSAMIENTOS DE IA)
+    # 1. Comprobar si es un login estricto
     matched_identity = check_user_identity(prompt)
-    
     if matched_identity:
-        # Si el usuario solo se estaba identificando (ej. "Soy Sena 2", "wq26", "soy padre")
         st.session_state.active_profile = matched_identity
-        welcome_msg = matched_identity["welcome"]
-        
+        w_msg = matched_identity["welcome"]
         with st.chat_message("assistant"):
-            st.markdown(welcome_msg)
-        st.session_state.messages.append({"role": "assistant", "content": welcome_msg})
+            st.markdown(w_msg)
+        st.session_state.messages.append({"role": "assistant", "content": w_msg})
         st.rerun()
 
+    # 2. Es una solicitud de trabajo real
     else:
-        # 3. CONSULTA REGULAR A LA IA (PERSONALIZADA AL PERFIL ACTIVO)
         with st.chat_message("assistant"):
-            with st.spinner("Whitman AI está estructurando tu respuesta..."):
+            with st.spinner("Whitman AI está redactando y formateando tu documento..."):
                 try:
-                    role_context = st.session_state.active_profile.get("prompt_mode", "")
-                    custom_prompt = f"""
-[PERFIL ACTIVO DEL USUARIO: {st.session_state.active_profile['role_name']}]
-DIRECTIVA DE ROL: {role_context}
-
-SOLICITUD: {prompt}
-
-Responde directamente en español al usuario según su perfil, sin notas internas ni prefacios.
-"""
-                    res = base_model.generate_content(custom_prompt)
-                    ans = res.text.strip()
+                    # Detectar si requiere imagen o tarjeta gráfica
+                    p_lower = prompt.lower()
+                    needs_img = any(k in p_lower for k in ["tarjeta", "invitacion", "invitación", "poster", "logo", "imagen", "diseño visual"])
                     
-                    # Filtro de seguridad adicional contra fugas
-                    if "User input:" in ans or "The instruction says:" in ans:
-                        idx_cut = ans.rfind("---")
-                        if idx_cut != -1:
-                            ans = ans[idx_cut:].strip()
-                            
-                    st.markdown(ans)
-                    st.session_state.messages.append({"role": "assistant", "content": ans})
+                    # Generar texto con respaldo anti-error 500
+                    ai_text = generate_ai_response(prompt, st.session_state.active_profile["prompt_mode"])
+                    
+                    # Generar imagen si corresponde
+                    img_link = None
+                    if needs_img:
+                        img_link = generate_image_url(f"Elegant institutional invitation card for student project defense at Villa Mayor Theater, navy blue and gold accents, official formal graphic design, high resolution")
+                    
+                    st.markdown(ai_text)
+                    if img_link:
+                        st.image(img_link, caption="🎨 Propuesta Visual Diseñada para el Evento", use_container_width=True)
+                        
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": ai_text,
+                        "image_url": img_link
+                    })
                     st.rerun()
                 except Exception as e:
-                    err_msg = f"No pudimos conectar temporalmente con el servidor. Por favor reintenta tu pregunta. ({str(e)})"
-                    st.markdown(err_msg)
-                    st.session_state.messages.append({"role": "assistant", "content": err_msg})
+                    err = f"Ocurrió una pausa temporal en el servicio. Por favor reintenta tu solicitud. ({str(e)})"
+                    st.error(err)
+                    st.session_state.messages.append({"role": "assistant", "content": err})
