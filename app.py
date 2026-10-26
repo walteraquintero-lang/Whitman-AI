@@ -67,44 +67,64 @@ st.markdown("""
         font-weight: 600;
         text-decoration: none;
     }
-    .docs-btn:hover {
-        background-color: #2563eb;
-    }
+    .docs-btn:hover { background-color: #2563eb; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- PERFILES ---
+# --- CONFIGURAR API DE GOOGLE ---
+api_key = st.secrets.get("GEMINI_API_KEY")
+if not api_key:
+    st.error("Falta configurar GEMINI_API_KEY en Secrets.")
+    st.stop()
+
+genai.configure(api_key=api_key)
+
+# Conectar al modelo directamente SIN system_instruction (Evita el Error 500)
+@st.cache_resource
+def get_clean_model():
+    for name in ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-pro"]:
+        try:
+            m = genai.GenerativeModel(name)
+            m.generate_content("hola")
+            return name, m
+        except Exception:
+            continue
+    raise RuntimeError("No se pudo iniciar el modelo de Google.")
+
+model_name, active_model = get_clean_model()
+
+# --- PERFILES Y AUTENTICACIÓN ---
 PROFILES = {
     "wq26": {
         "role_name": "👑 Coordinador de Innovación & Tecnología",
         "badge": "ADMINISTRACIÓN / INNOVACIÓN",
         "welcome": "¡Bienvenido, Ing. Walter Quintero! Centro de Control activo. Acceso a diseño pedagógico, proyectos SENA y herramientas audiovisuales de Whitman Studio.",
-        "prompt_mode": "Usuario: Coordinador Walter Quintero. Tono estratégico, directivo, técnico y de innovación escolar."
+        "context": "El usuario es el Coordinador Walter Quintero. Tono estratégico, formal, de innovación y directivo."
     },
     "sena2": {
         "role_name": "🚀 Aprendiz SENA - Fase 2 (11° / Proyecto)",
         "badge": "APRENDIZ SENA - FASE 2",
-        "welcome": "¡Acceso Concedido, Aprendiz SENA! 🚀 Tu entorno para el Proyecto Productivo (Fase 2) está listo. Podemos estructurar tarjetas de invitación, piezas gráficas para las sustentaciones o matrices para Illustrator.",
-        "prompt_mode": "Usuario: Aprendiz SENA Fase 2 (11°). Foco en Proyecto Productivo, sustentaciones, Adobe Illustrator y piezas de difusión."
+        "welcome": "¡Acceso Concedido, Aprendiz SENA! 🚀 Tu entorno para el Proyecto Productivo (Fase 2) está listo. Podemos estructurar tarjetas de invitación, piezas gráficas para las sustentaciones o matrices de mercado.",
+        "context": "El usuario es Aprendiz SENA Fase 2 (11°). Foco en Proyecto Productivo, sustentaciones en el Teatro Villa Mayor, diseño y piezas gráficas."
     },
     "padre": {
         "role_name": "🏡 Familia Whitman",
         "badge": "PADRES DE FAMILIA",
         "welcome": "¡Estimada Familia del Liceo Moderno Walt Whitman, bienvenidos! 🌟 Este es su espacio de orientación escolar. ¿En qué información sobre eventos o sustentaciones podemos orientarle hoy?",
-        "prompt_mode": "Hablas con un padre de familia. Tono institucional, cálido, formal y claro. Orienta sobre eventos, sustentaciones y vida escolar sin jerga técnica."
+        "context": "El usuario es un padre de familia. Tono cálido, formal, empático, claro e institucional."
     }
 }
 
-def check_user_identity(text):
+def check_identity(text):
     clean = text.lower().strip()
-    action_words = ["crea", "creemos", "haz", "diseña", "redacta", "planea", "escribe", "genera", "comunicado", "tarjeta", "invitacion", "invitación"]
-    if any(w in clean for w in action_words) or len(clean.split()) > 5:
+    action_words = ["crea", "creemos", "haz", "diseña", "redacta", "planea", "escribe", "genera", "tarjeta", "invitacion", "invitación", "comunicado"]
+    if any(w in clean for w in action_words) or len(clean.split()) > 4:
         return None
     if "wq26" in clean:
         return PROFILES["wq26"]
-    elif any(k in clean for k in ["sena 2", "sena2", "soy sena 2", "fase 2"]):
+    elif any(k in clean for k in ["sena 2", "sena2", "soy sena 2"]):
         return PROFILES["sena2"]
-    elif clean in ["padre", "papa", "papá", "mama", "mamá", "soy padre", "acudiente"]:
+    elif clean in ["padre", "soy padre", "acudiente", "mama", "papa"]:
         return PROFILES["padre"]
     return None
 
@@ -113,55 +133,7 @@ def generate_image_url(prompt_text):
     encoded = urllib.parse.quote(clean[:200])
     return f"https://image.pollinations.ai/prompt/{encoded}?width=900&height=500&nologo=true"
 
-# --- CONEXIÓN DIRECTA CON EL MOTOR QUE FUNCIONA ---
-api_key = st.secrets.get("GEMINI_API_KEY")
-if not api_key:
-    st.error("Falta configurar GEMINI_API_KEY en Secrets.")
-    st.stop()
-
-genai.configure(api_key=api_key)
-
-SYSTEM_BASE = """
-Eres Whitman AI, asistente pedagógico e institucional oficial del Liceo Moderno Walt Whitman (Villa Mayor, Bogotá).
-Diseñado y entrenado por: Walter Quintero (Coordinador de Innovación y Tecnología).
-
-DIRECTIVAS INSTITUCIONALES:
-1. COMUNICADOS: Redáctalos formalmente con membrete, número de circular, fecha, lugar (Teatro Villa Mayor), orden del día, recomendaciones y firma de Rectoría / Coordinación.
-2. TARJETAS DE INVITACIÓN: Diseña la estructura visual y textual completa (Titular, Fecha, Hora, Lugar, Protocolo de vestimenta, Código de confirmación).
-3. GUÍAS Y PLANEACIONES: Usa tablas estructuradas con momentos de clase (DBA, Ecosistema Vital).
-4. NUNCA generes notas preliminares en inglés ni textos de pensamiento. Responde directamente.
-
-CIERRE OBLIGATORIO:
----
-> *"El arte de la educación es el arte de despertar la curiosidad."* — Walt Whitman
-
-**Resultados potenciados por Whitman AI | Entrenado por: Walter Quintero (Coord. Innovación y Tecnología)**
-"""
-
-@st.cache_resource
-def get_working_engine():
-    candidate_names = []
-    try:
-        for m in genai.list_models():
-            if "generateContent" in m.supported_generation_methods:
-                candidate_names.append(m.name)
-    except Exception:
-        pass
-    for fb in ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"]:
-        if fb not in candidate_names:
-            candidate_names.append(fb)
-    for model_name in candidate_names:
-        try:
-            test_m = genai.GenerativeModel(model_name=model_name, system_instruction=SYSTEM_BASE)
-            test_m.generate_content("ping")
-            return model_name, test_m
-        except Exception:
-            continue
-    raise RuntimeError("No se encontró ningún modelo compatible habilitado.")
-
-active_model_name, active_model = get_working_engine()
-
-# --- GENERADOR DE PDF ---
+# --- GENERADORES DE ARCHIVOS ---
 def generate_pdf_reportlab(text):
     try:
         buffer = io.BytesIO()
@@ -279,7 +251,7 @@ if "active_profile" not in st.session_state:
     st.session_state.active_profile = {
         "role_name": "Comunidad Educativa General",
         "badge": "VISITANTE GENERAL",
-        "prompt_mode": "Asistente institucional del colegio para toda la comunidad."
+        "context": "Asistente institucional para la comunidad del Liceo Moderno Walt Whitman."
     }
 
 # --- HEADER PRINCIPAL ---
@@ -294,7 +266,7 @@ st.markdown(f"""
 # --- BARRA LATERAL ---
 with st.sidebar:
     st.header("🏫 Acceso Rápido")
-    st.caption(f"Motor IA: `{active_model_name}`")
+    st.caption(f"Motor activo: `{model_name}`")
     if st.button("👑 Administrador (wq26)"):
         st.session_state.active_profile = PROFILES["wq26"]
         st.session_state.messages.append({"role": "assistant", "content": PROFILES["wq26"]["welcome"]})
@@ -313,7 +285,7 @@ with st.sidebar:
         st.session_state.active_profile = {
             "role_name": "Comunidad Educativa General",
             "badge": "VISITANTE GENERAL",
-            "prompt_mode": "Asistente institucional del colegio para toda la comunidad."
+            "context": "Asistente institucional para la comunidad del Liceo Moderno Walt Whitman."
         }
         st.rerun()
 
@@ -323,11 +295,9 @@ for idx, msg in enumerate(st.session_state.messages):
         content_text = msg["content"]
         st.markdown(content_text)
         
-        # Mostrar imagen generada si la tiene
         if "image_url" in msg and msg["image_url"]:
             st.image(msg["image_url"], caption="🎨 Propuesta Visual Diseñada para el Evento", use_container_width=True)
             
-        # Botones de exportación al final
         if msg["role"] == "assistant" and len(content_text) > 140:
             st.markdown("""
             <div style="margin-top: 15px; border-top: 1px solid #1e3a8a; padding-top: 8px;">
@@ -357,33 +327,47 @@ if prompt := st.chat_input("Escribe tu solicitud, redacta un comunicado, planeac
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # 1. Comprobar si es un login estricto
-    matched_identity = check_user_identity(prompt)
-    if matched_identity:
-        st.session_state.active_profile = matched_identity
-        w_msg = matched_identity["welcome"]
+    # 1. ¿Es login directo?
+    ident = check_identity(prompt)
+    if ident:
+        st.session_state.active_profile = ident
+        w = ident["welcome"]
         with st.chat_message("assistant"):
-            st.markdown(w_msg)
-        st.session_state.messages.append({"role": "assistant", "content": w_msg})
+            st.markdown(w)
+        st.session_state.messages.append({"role": "assistant", "content": w})
         st.rerun()
 
-    # 2. Es una solicitud de trabajo real
+    # 2. Solicitud directa al modelo (Sin system_instruction = CERO Error 500)
     else:
         with st.chat_message("assistant"):
-            with st.spinner("Whitman AI está redactando y formateando tu documento..."):
+            with st.spinner("Whitman AI está elaborando tu material institucional..."):
                 try:
+                    # Estructura del prompt enviada directamente en el texto
+                    master_query = f"""
+Eres Whitman AI, asistente pedagógico e institucional oficial del Liceo Moderno Walt Whitman (Villa Mayor, Bogotá).
+Entrenado por Walter Quintero (Coord. Innovación y Tecnología).
+Contexto del usuario actual: {st.session_state.active_profile['context']}
+
+DIRECTIVAS IMPORTANTES:
+- Responde DIRECTAMENTE con el documento o diseño solicitado. Cero notas internas en inglés.
+- Si te piden una tarjeta o comunicado, incluye fecha (29 de octubre/noviembre), lugar (Teatro Villa Mayor), orden del día y protocolo formal.
+- Finaliza siempre con la frase:
+---
+> "El arte de la educación es el arte de despertar la curiosidad." — Walt Whitman
+Resultados potenciados por Whitman AI | Entrenado por: Walter Quintero (Coord. Innovación y Tecnología)
+
+SOLICITUD DEL USUARIO:
+{prompt}
+"""
+                    res = active_model.generate_content(master_query)
+                    ai_text = res.text.strip()
+                    
+                    # Generar imagen si corresponde
                     p_lower = prompt.lower()
-                    needs_img = any(k in p_lower for k in ["tarjeta", "invitacion", "invitación", "poster", "logo", "imagen", "diseño visual"])
-                    
-                    # Llamada DIRECTA al motor verificado de tu cuenta
-                    full_query = f"Perfil: {st.session_state.active_profile['role_name']}\nDirectiva: {st.session_state.active_profile['prompt_mode']}\n\nSolicitud del usuario: {prompt}"
-                    response = active_model.generate_content(full_query)
-                    ai_text = response.text.strip()
-                    
-                    # Generar imagen visual si corresponde
+                    needs_img = any(k in p_lower for k in ["tarjeta", "invitacion", "invitación", "poster", "logo", "imagen"])
                     img_link = None
                     if needs_img:
-                        img_link = generate_image_url("Elegant institutional invitation card for student project defense at Villa Mayor Theater, navy blue and gold accents, official formal graphic design, high resolution")
+                        img_link = generate_image_url("Official institutional luxury invitation card for student project defense at Villa Mayor Theater, navy blue and gold accents, graphic design template")
                     
                     st.markdown(ai_text)
                     if img_link:
@@ -396,6 +380,4 @@ if prompt := st.chat_input("Escribe tu solicitud, redacta un comunicado, planeac
                     })
                     st.rerun()
                 except Exception as e:
-                    err = f"Error al generar respuesta: {str(e)}"
-                    st.error(err)
-                    st.session_state.messages.append({"role": "assistant", "content": err})
+                    st.error(f"Error temporal del servicio: {str(e)}")
