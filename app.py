@@ -409,5 +409,7 @@ SOLICITUD:
                 except Exception as e:
                     last_error = str(e)
                     continue
-                    
+
+if not answered:
+                st.error(f"Aviso de cuota en Google API: {last_error}")
             
