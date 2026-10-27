@@ -72,7 +72,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- CONEXIÓN DIRECTA Y ROBUSTA A GEMINI ---
+# --- CONEXIÓN API ---
 api_key = st.secrets.get("GEMINI_API_KEY")
 if not api_key:
     st.error("Falta configurar GEMINI_API_KEY en Secrets de Streamlit.")
@@ -80,63 +80,106 @@ if not api_key:
 
 genai.configure(api_key=api_key)
 
-# Inicialización directa del modelo sin bloqueos de bucle
+# --- CONEXIÓN CON VERIFICACIÓN REAL EN VIVO (ANTI-404) ---
 @st.cache_resource
-def load_llm():
-    # Modelos autorizados en orden de preferencia
-    for m_name in ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-pro"]:
+def load_verified_llm():
+    # Obtener modelos de la cuenta
+    account_models = []
+    try:
+        for m in genai.list_models():
+            if "generateContent" in m.supported_generation_methods:
+                account_models.append(m.name)
+    except Exception:
+        pass
+
+    # Lista de candidatos priorizando versiones modernas
+    candidates = ["models/gemini-2.0-flash", "gemini-2.0-flash", "models/gemini-1.5-pro", "gemini-1.5-pro"]
+    for m in account_models:
+        if m not in candidates:
+            candidates.append(m)
+
+    # Probar en vivo cuál responde sin dar 404
+    for candidate in candidates:
         try:
-            m = genai.GenerativeModel(m_name)
-            return m_name, m
+            test_m = genai.GenerativeModel(candidate)
+            test_res = test_m.generate_content("ok")
+            if test_res and test_res.text:
+                return candidate, test_m
         except Exception:
             continue
-    # Fallback directo
-    return "gemini-1.5-flash", genai.GenerativeModel("gemini-1.5-flash")
 
-model_name, active_model = load_llm()
+    raise RuntimeError("No se encontró ningún modelo activo que responda en tu cuenta de Google.")
 
-# --- BASE DE CONOCIMIENTO INSTITUCIONAL MAESTRA ---
+model_name, active_model = load_verified_llm()
+
+# --- BASE DE CONOCIMIENTO INSTITUCIONAL ---
 INSTITUTIONAL_CORE = r"""
-ERES WHITMAN AI: EL ASISTENTE PEDAGÓGICO, ESTRATÉGICO Y MULTIMODAL DEL LICEO MODERNO WALT WHITMAN (BOGOTÁ, BARRIO VILLA MAYOR).
+ERES WHITMAN AI: ASISTENTE PEDAGÓGICO, INSTITUCIONAL Y MULTIMODAL DEL LICEO MODERNO WALT WHITMAN (BOGOTÁ, VILLA MAYOR).
 Entrenado por: Walter Quintero (Coordinador de Innovación y Tecnología).
 
-1. IDENTIDAD INSTITUCIONAL:
-- Lema: "El arte de la educación es el arte de despertar la curiosidad." — Walt Whitman
-- Misión: Formar estudiantes que crezcan cada día, sean felices y emprendan sus sueños con habilidades para el siglo XXI.
-- Ubicación / Aula Extendida: Calle 38 Bis Sur # 34D-29, Villa Mayor. Articulación con Parque Villa Mayor, Centro Comercial Centro Mayor y entorno barrial.
+1. ECOSISTEMA VITAL 2026 (4 MOTORES):
+- Motor 1 (Académico): Reggio Emilia (Cien Lenguajes, Tercer Maestro), Educación Holística y ABP.
+- Motor 2 (Bienestar): Cátedra de Emocionalidad (Ley 2503/2025). Malla por ciclos (Preescolar a 11°). Rincones de Calma y Justicia Restaurativa.
+- Motor 3 (Entorno): Agenda 2030 / ODS (2, 6, 12, 16) y orientación vocacional STEM/Verde.
+- Motor 4 (IA): Atelier Digital y socio metodológico. Metodología Sándwich (Pan humano - Jamón IA - Pan humano).
 
-2. ECOSISTEMA VITAL 2026 (LOS 4 MOTORES ESTRATÉGICOS):
-- Motor 1: Transformación Académica ("Tejiendo Saberes"): Enfoque Reggio Emilia (Cien Lenguajes de la infancia, el ambiente como Tercer Maestro), Educación Holística y Aprendizaje Basado en Proyectos (ABP).
-- Motor 2: Bienestar Integral ("Cátedra de Emocionalidad"): Ley 2503/2025. Malla curricular por ciclos (Ciclo 1: Reconocimiento/Calma; Ciclo 2: Frustración/Asertividad; Ciclo 3: Riesgos/Decisiones; Ciclo 4: Liderazgo/Proyecto de Vida). Justicia Restaurativa y Rincones de Calma.
-- Motor 3: Ciudadanía Global (ODS y Psicoorientación): Conexión con Agenda 2030 (ODS 2, 6, 12, 16). Inmersión bilingüe y proyecto de vida STEM/Verde (ODS 8).
-- Motor 4: Innovación Tecnológica (IA como Atelier Digital): La IA no es sustituto sino copiloto y socio metodológico. Metodología Sándwich (Pan humano - Jamón IA - Pan humano).
+2. BILINGÜISMO (CIUDADANOS DEL MUNDO):
+- Liderado por Marcela Santana y Natalia Cruz. Inmersión en Toronto, Canadá. Pruebas TOEFL Junior (B1/B2 en 11°).
+- Science (1° a 5°) 100% en inglés técnico, metodología 70/30 (30% explicación, 70% práctica activa) y ODS.
 
-3. PROYECTO DE BILINGÜISMO (CIUDADANOS DEL MUNDO):
-- Liderado por Marcela Santana y Natalia Cruz. Inmersión internacional en Toronto, Canadá.
-- Pruebas internacionales TOEFL Junior (Nivel B1/B2 en 11°). Singing Fest y Spelling Bee.
-- En Science (1° a 5°) y Ciudadanos del Mundo: 100% en inglés técnico (Technical Science English), metodología 70/30 (30% Explicación, 70% Speaking/Listening) e integración de ODS.
+3. ARTICULACIÓN SENA Y WHITMAN STUDIO:
+- Técnico en Integración de Contenidos Digitales (Grados 10° y 11°).
+- 9 Fases del Proyecto Productivo (Reto 5: Investigación de Mercados y Buyer Persona).
+- Estándar Walter Quintero: Diseños vectoriales estrictos en Adobe Illustrator (.AI) en 3 capas ([Fondos], [Vectores], [Textos]), tipografías a curvas.
+- Whitman Studio: Semillero creativo de producción audiovisual, branding y marketing escolar.
 
-4. ARTICULACIÓN MEDIA TÉCNICA SENA Y WHITMAN STUDIO:
-- Programa: Técnico en Integración de Contenidos Digitales (Grados 10° y 11°). Doble titulación.
-- 9 Fases del Proyecto Productivo (Reto 5: Investigación de Mercados, Buyer Persona, etc.).
-- Estándar Walter Quintero: Proyectos vectoriales estrictos en Adobe Illustrator (.AI) en 3 capas ([Fondos], [Vectores], [Textos]), tipografías a curvas, sin bitmaps pixelados.
-- Whitman Studio: Semillero creativo de producción audiovisual, branding, hooks virales y fotografía escolar.
-
-5. SIEE (EVALUACIÓN) Y MANUAL DE CONVIVENCIA:
+4. SIEE Y MANUAL DE CONVIVENCIA:
 - Evaluación cualitativa: Superior, Alto, Básico y Bajo (Cero promedios numéricos).
-- La sustentación oral vale el 60% de la evaluación; el entregable escrito el 40%.
-- Faltas Tipo I (Leves), Tipo II (Graves) y Tipo III (Gravísimas) con estricto debido proceso.
-- Póliza de accidentes escolares: SURA (Código convenio: 2005341).
+- Sustentación oral (60%) vs entregable escrito (40%). Módulo PIAR integrado.
+- Faltas Tipo I, II y III con debido proceso. Póliza SURA convenio 2005341.
 
-6. DIRECTIVAS DE GENERACIÓN MULTIMODAL:
-- Si el usuario solicita un MAPA, DIAGRAMA O FLUJO: Genera un bloque de código Mermaid (```mermaid ... ```) para que se renderice visualmente.
-- Si solicita AUDIO O SONIDO: Diseña el guion técnico con efectos de sonido (SFX), tiempos, y prompts musicales listos para Suno o Udio.
-- Si solicita COMUNICADOS O TARJETAS: Redáctalos con toda la formalidad institucional, orden del día, fecha, lugar (Teatro Villa Mayor) y firmas correspondientes.
-- Si solicita PLANEACIONES: Estructura encabezado, DBA, momentos de clase de 40-45 min, páginas del libro y módulo PIAR.
-- NUNCA generes notas preliminares en inglés ("Target audience", "Context", "Self-correction"). Entrega directamente el producto solicitado.
+DIRECTIVAS DE RESPUESTA:
+- Responde DIRECTAMENTE con el documento, tarjeta, planeación o diseño solicitado. Cero notas de pensamiento preliminares.
+- Si piden diagramas, incluye bloques ```mermaid ... ```.
+- Toda respuesta finaliza con:
+---
+> "El arte de la educación es el arte de despertar la curiosidad." — Walt Whitman
+Resultados potenciados por Whitman AI | Entrenado por: Walter Quintero (Coord. Innovación y Tecnología)
 """
 
-# --- PARSEADOR DE DIAGRAMAS MERMAID ---
+# --- MATRIZ DE IDENTIDAD ---
+PROFILES = {
+    "wq26": {
+        "role_name": "👑 Coordinador de Innovación & Tecnología",
+        "badge": "ADMINISTRACIÓN / INNOVACIÓN",
+        "welcome": "¡Bienvenido, Ing. Walter Quintero! Centro de Control activo con motor validado. Tienes acceso a diseño curricular, proyectos SENA, Ecosistema Vital y Whitman Studio."
+    },
+    "sena2": {
+        "role_name": "🚀 Aprendiz SENA - Fase 2 (11°)",
+        "badge": "APRENDIZ SENA - FASE 2",
+        "welcome": "¡Bienvenido, Aprendiz SENA! Laboratorio de Proyectos Productivos, 9 Retos y Adobe Illustrator listo para trabajar."
+    },
+    "padre": {
+        "role_name": "🏡 Familia Whitman",
+        "badge": "PADRES DE FAMILIA",
+        "welcome": "¡Bienvenidos Padres y Madres Liceístas! Espacio de orientación, convivencia escolar y eventos institucionales."
+    }
+}
+
+def check_identity(text):
+    clean = text.lower().strip()
+    action_words = ["crea", "creemos", "haz", "diseña", "redacta", "planea", "escribe", "genera", "tarjeta", "invitacion", "invitación", "comunicado"]
+    if any(w in clean for w in action_words) or len(clean.split()) > 4:
+        return None
+    if "wq26" in clean:
+        return PROFILES["wq26"]
+    elif any(k in clean for k in ["sena 2", "sena2", "soy sena 2"]):
+        return PROFILES["sena2"]
+    elif clean in ["padre", "soy padre", "acudiente", "mama", "papa"]:
+        return PROFILES["padre"]
+    return None
+
+# --- PARSEADOR MERMAID ---
 def render_mermaid(text):
     mermaid_matches = re.findall(r"```mermaid\n([\s\S]*?)\n```", text)
     for code in mermaid_matches:
@@ -219,7 +262,7 @@ def generate_docx(text):
     try:
         doc = Document()
         doc.add_heading("Liceo Moderno Walt Whitman", level=0)
-        doc.add_paragraph("Ecosistema Vital 26 • Formación Pedagógica Institucional")
+        doc.add_paragraph("Ecosistema Vital 26 • Formación Institucional")
         doc.add_paragraph("--------------------------------------------------")
         for line in text.split("\n"):
             clean = line.strip()
@@ -279,26 +322,26 @@ st.markdown(f"""
 # --- BARRA LATERAL ---
 with st.sidebar:
     st.header("🏫 Centro de Mando")
-    st.caption(f"Motor Conectado: `{model_name}`")
+    st.caption(f"Motor Validado: `{model_name}`")
     st.markdown("### Selecciona o valida tu rol:")
     c1, c2 = st.columns(2)
     with c1:
         if st.button("👑 Walter Q."):
-            st.session_state.user_role = "Coordinador de Innovación y Tecnología"
-            st.session_state.messages.append({"role": "assistant", "content": "¡Bienvenido, Walter! Entorno de Administración, Whitman Studio y Ecosistema Vital activo."})
+            st.session_state.user_role = PROFILES["wq26"]["badge"]
+            st.session_state.messages.append({"role": "assistant", "content": PROFILES["wq26"]["welcome"]})
             st.rerun()
         if st.button("🚀 SENA 11°"):
-            st.session_state.user_role = "Aprendiz SENA - Fase 2 (11°)"
-            st.session_state.messages.append({"role": "assistant", "content": "¡Bienvenido, Aprendiz SENA! Laboratorio de Proyectos Productivos, Retos y Adobe Illustrator listo."})
+            st.session_state.user_role = PROFILES["sena2"]["badge"]
+            st.session_state.messages.append({"role": "assistant", "content": PROFILES["sena2"]["welcome"]})
             st.rerun()
     with c2:
         if st.button("🔬 Science"):
-            st.session_state.user_role = "Docente Science / Ciudadanos del Mundo"
+            st.session_state.user_role = "DOCENTE BILINGÜE"
             st.session_state.messages.append({"role": "assistant", "content": "¡Welcome Teacher! Formato bilingüe 70/30, ODS y estándares MCER activos."})
             st.rerun()
         if st.button("🏡 Familias"):
-            st.session_state.user_role = "Padres de Familia"
-            st.session_state.messages.append({"role": "assistant", "content": "¡Bienvenidos Padres y Madres Liceístas! Espacio de orientación, convivencia y eventos escolares."})
+            st.session_state.user_role = PROFILES["padre"]["badge"]
+            st.session_state.messages.append({"role": "assistant", "content": PROFILES["padre"]["welcome"]})
             st.rerun()
     st.divider()
     if st.button("🗑️ Nueva Conversación"):
@@ -306,16 +349,14 @@ with st.sidebar:
         st.session_state.user_role = "Comunidad Educativa General"
         st.rerun()
 
-# --- HISTORIAL DE CONVERSACIÓN ---
+# --- HISTORIAL ---
 for idx, msg in enumerate(st.session_state.messages):
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
         
-        # Renderizar diagramas Mermaid si los hay
         if "```mermaid" in msg["content"]:
             render_mermaid(msg["content"])
             
-        # Botones de exportación al final
         if msg["role"] == "assistant" and len(msg["content"]) > 130:
             st.markdown("""
             <div style="margin-top: 15px; border-top: 1px solid #1e3a8a; padding-top: 8px;">
@@ -339,42 +380,51 @@ for idx, msg in enumerate(st.session_state.messages):
             with b4:
                 st.markdown('<a href="https://docs.new" target="_blank" class="docs-btn">🌐 Abrir en Google Docs</a>', unsafe_allow_html=True)
 
-# --- CAJA DE ENTRADA UNIVERSAL ---
-if prompt := st.chat_input("Escribe cualquier solicitud (planeaciones, mapas, circulares, guías SENA, etc.)..."):
+# --- ENTRADA ---
+if prompt := st.chat_input("Escribe tu solicitud (ej: 'creemos una tarjeta de invitación para las sustentaciones del 29 en el teatro de villa mayor')..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    with st.chat_message("assistant"):
-        with st.spinner("Whitman AI está estructurando tu solicitud con los estándares del Liceo..."):
-            try:
-                # Consulta contextualizada con la base de conocimiento institucional completa
-                query = f"""
+    # 1. Comprobar si es un login
+    ident = check_identity(prompt)
+    if ident:
+        st.session_state.user_role = ident["badge"]
+        w = ident["welcome"]
+        with st.chat_message("assistant"):
+            st.markdown(w)
+        st.session_state.messages.append({"role": "assistant", "content": w})
+        st.rerun()
+
+    # 2. Es una solicitud real al motor validado
+    else:
+        with st.chat_message("assistant"):
+            with st.spinner("Whitman AI está estructurando tu material institucional..."):
+                try:
+                    query = f"""
 {INSTITUTIONAL_CORE}
 
-ROL DEL USUARIO ACTUAL: {st.session_state.user_role}
+ROL DEL USUARIO: {st.session_state.user_role}
 
 SOLICITUD:
 {prompt}
 """
-                response = active_model.generate_content(query)
-                answer_text = response.text.strip()
-                
-                # Limpieza de notas internas si hubiese
-                if "User input:" in answer_text or "*Target Audience:" in answer_text:
-                    cut = answer_text.rfind("---")
-                    if cut != -1:
-                        answer_text = answer_text[cut:].strip()
-                
-                st.markdown(answer_text)
-                
-                # Renderizar diagrama si la respuesta generó uno
-                if "```mermaid" in answer_text:
-                    render_mermaid(answer_text)
+                    response = active_model.generate_content(query)
+                    answer_text = response.text.strip()
                     
-                st.session_state.messages.append({"role": "assistant", "content": answer_text})
-                st.rerun()
-            except Exception as e:
-                err_msg = f"Error al generar respuesta: {str(e)}"
-                st.error(err_msg)
-                st.session_state.messages.append({"role": "assistant", "content": err_msg})
+                    if "User input:" in answer_text or "*Target Audience:" in answer_text:
+                        cut = answer_text.rfind("---")
+                        if cut != -1:
+                            answer_text = answer_text[cut:].strip()
+                    
+                    st.markdown(answer_text)
+                    
+                    if "```mermaid" in answer_text:
+                        render_mermaid(answer_text)
+                        
+                    st.session_state.messages.append({"role": "assistant", "content": answer_text})
+                    st.rerun()
+                except Exception as e:
+                    err = f"Error al generar respuesta: {str(e)}"
+                    st.error(err)
+                    st.session_state.messages.append({"role": "assistant", "content": err})
