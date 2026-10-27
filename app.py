@@ -79,14 +79,16 @@ if not api_key:
 
 genai.configure(api_key=api_key)
 
-# Lista de modelos con cuota amplia (1.500 peticiones diarias)
-AVAILABLE_MODELS = [
-    "gemini-2.0-flash",
+# Lista completa de modelos disponibles en Google
+ALL_CANDIDATE_MODELS = [
+    "models/gemini-3.8-flash",
+    "gemini-3.8-flash",
     "models/gemini-2.0-flash",
-    "gemini-1.5-pro",
+    "gemini-2.0-flash",
     "models/gemini-1.5-pro",
-    "gemini-1.5-flash-8b",
-    "models/gemini-1.5-flash-8b"
+    "gemini-1.5-pro",
+    "models/gemini-1.5-flash-8b",
+    "gemini-1.5-flash-8b"
 ]
 
 # --- FILTRO DE METADATOS ---
@@ -99,7 +101,7 @@ def guillotine_clean(text):
         clean_l = line.strip().lower()
         if any(clean_l.startswith(k) for k in ["* *identity:", "* *training:", "* *context:", "* *user request:", "* *audience:", "* *topic:", "* *structure:"]):
             start_index = i + 1
-        elif clean_l.startswith("#") or clean_l.startswith("**área") or clean_l.startswith("**título") or "guía de" in clean_l or "circular" in clean_l:
+        elif clean_l.startswith("#") or clean_l.startswith("**área") or clean_l.startswith("**título") or "guía de" in clean_l or "circular" in clean_l or "el liceo" in clean_l:
             start_index = i
             break
     clean_text = "\n".join(lines[start_index:]).strip()
@@ -265,18 +267,18 @@ PROFILES = {
     }
 }
 
+# Verificación estricta (solo si es únicamente un login de 1 o 2 palabras)
 def check_identity(text):
     clean = text.lower().strip()
-    action_words = ["crea", "haz", "diseña", "redacta", "planea", "planear", "guia", "guía"]
-    if any(w in clean for w in action_words) or len(clean.split()) > 4:
+    if len(clean.split()) > 3:
         return None
-    if "wq26" in clean:
+    if clean in ["wq26", "soy wq26"]:
         return PROFILES["wq26"]
-    elif any(k in clean for k in ["sena", "sena1", "sena2", "soy sena"]):
+    elif clean in ["sena", "sena1", "sena2", "soy sena", "soy sena 2"]:
         return PROFILES["sena"]
-    elif any(k in clean for k in ["profe", "docente", "profesor"]):
+    elif clean in ["profe", "docente", "profesor", "profesora"]:
         return PROFILES["docente"]
-    elif clean in ["padre", "mama", "papa", "acudiente"]:
+    elif clean in ["padre", "mama", "papa", "acudiente", "soy padre", "familia"]:
         return PROFILES["padre"]
     return None
 
@@ -298,7 +300,6 @@ st.markdown(f"""
 # --- BARRA LATERAL ---
 with st.sidebar:
     st.header("🏫 Acceso Rápido")
-    st.caption("Motor con relevo automático de 1.500 consultas/día")
     c1, c2 = st.columns(2)
     with c1:
         if st.button("👑 Walter Q."):
@@ -351,7 +352,7 @@ for idx, msg in enumerate(st.session_state.messages):
             with b4:
                 st.markdown('<a href="https://docs.new" target="_blank" class="docs-btn">🌐 Abrir en Google Docs</a>', unsafe_allow_html=True)
 
-# --- ENTRADA CON RELEVO AUTOMÁTICO DE MODELOS ---
+# --- ENTRADA ---
 if prompt := st.chat_input("Escribe tu solicitud de planeación o consulta..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -370,22 +371,24 @@ if prompt := st.chat_input("Escribe tu solicitud de planeación o consulta..."):
             master_query = f"""
 Eres Whitman AI, asistente pedagógico e institucional oficial del Liceo Moderno Walt Whitman (Bogotá, Villa Mayor) y Whitman Studio.
 Entrenado por Walter Quintero (Coord. Innovación y Tecnología).
-Rol: {st.session_state.user_role}
+Rol del usuario: {st.session_state.user_role}
 
 REGLAS:
-1. Comienza DIRECTAMENTE con la planeación o documento solicitado. Cero notas previas en inglés.
-2. Si es Ciudadanos del Mundo / English / Science: Redacta en inglés técnico bajo formato de matriz bilingüe 70/30, ODS y PIAR.
-3. Si son áreas no bilingües: 40-45 minutos, DBA Colombia/Bogotá, articulación con el libro y PIAR.
-4. Cierre obligatorio institucional.
+1. Comienza DIRECTAMENTE con la respuesta o planeación. Cero notas previas en inglés.
+2. Si es una familia/padre: sé cálido, orientativo e institucional (explica beneficios, enfoque y valores del Liceo).
+3. Si es planeación: usa la estructura de DBA, 40-45 min, páginas del libro y PIAR.
+4. Finaliza siempre con el lema institucional de Walt Whitman.
 
 SOLICITUD:
 {prompt}
 """
-            # SISTEMA DE RELEVO: Prueba modelos con 1.500 consultas hasta que uno responda
-            success = False
-            for model_candidate in AVAILABLE_MODELS:
+            # INTENTO MULTI-MODELO MOSTRANDO EL ESTADO REAL
+            answered = False
+            last_error = ""
+            
+            for candidate in ALL_CANDIDATE_MODELS:
                 try:
-                    m = genai.GenerativeModel(model_candidate, generation_config={"temperature": 0.2})
+                    m = genai.GenerativeModel(candidate, generation_config={"temperature": 0.2})
                     response = m.generate_content(master_query, stream=True)
                     
                     def stream_chunks():
@@ -400,12 +403,11 @@ SOLICITUD:
                         "role": "assistant",
                         "content": clean_answer
                     })
-                    success = True
+                    answered = True
                     st.rerun()
                     break
-                except Exception:
-                    # Si un modelo está saturado (429), salta al siguiente de inmediato
+                except Exception as e:
+                    last_error = str(e)
                     continue
                     
-            if not success:
-                st.error("Todos los servidores de Google están en alta demanda en este instante. Por favor espera 1 minuto y reintenta.")
+            
