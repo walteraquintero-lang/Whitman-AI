@@ -19,7 +19,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- ESTILOS CSS INSTITUCIONALES ---
+# --- ESTILOS CSS ---
 st.markdown("""
 <style>
     .header-box {
@@ -81,20 +81,11 @@ if not api_key:
 
 genai.configure(api_key=api_key)
 
-# --- CONEXIÓN AL MODELO 3.8 EXIGIDO POR GOOGLE ---
-@st.cache_resource
-def load_active_llm():
-    for name in ["models/gemini-3.8-flash", "gemini-3.8-flash"]:
-        try:
-            m = genai.GenerativeModel(name)
-            return name, m
-        except Exception:
-            continue
-    return "models/gemini-3.8-flash", genai.GenerativeModel("models/gemini-3.8-flash")
+# Modelo directo
+model_name = "models/gemini-3.8-flash"
+active_model = genai.GenerativeModel(model_name, generation_config={"temperature": 0.2})
 
-model_name, active_model = load_active_llm()
-
-# --- FILTRO GUILLOTINA: CORTA CUALQUIER NOTA INTERNA EN INGLÉS ---
+# --- FILTRO DE METADATOS ---
 def guillotine_clean(text):
     if not text:
         return ""
@@ -104,29 +95,14 @@ def guillotine_clean(text):
         clean_l = line.strip().lower()
         if any(clean_l.startswith(k) for k in ["* *identity:", "* *training:", "* *context:", "* *user request:", "* *audience:", "* *topic:", "* *structure:"]):
             start_index = i + 1
-        elif clean_l.startswith("#") or clean_l.startswith("**título") or "guía de" in clean_l or "circular" in clean_l or "tarjeta" in clean_l:
+        elif clean_l.startswith("#") or clean_l.startswith("**área") or clean_l.startswith("**título") or "guía de" in clean_l or "circular" in clean_l:
             start_index = i
             break
     clean_text = "\n".join(lines[start_index:]).strip()
     return clean_text if clean_text else text.strip()
 
-# --- GENERADOR DE IMÁGENES GOOGLE IMAGEN 3 ---
-def generate_image_google(prompt_text, key):
-    try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key={key}"
-        payload = {
-            "instances": [{"prompt": f"{prompt_text}, high resolution official educational illustration, clean vector style"}],
-            "parameters": {"sampleCount": 1, "aspectRatio": "16:9"}
-        }
-        res = requests.post(url, json=payload, timeout=20)
-        if res.status_code == 200:
-            b64 = res.json()["predictions"][0]["bytesBase64Encoded"]
-            return base64.b64decode(b64)
-    except Exception:
-        pass
-    return None
-
-# --- GENERADOR DE PDF INSTITUCIONAL CON LOGOS ---
+# --- GENERADORES EN CACHÉ (ULTRARRÁPIDOS) ---
+@st.cache_data(show_spinner=False)
 def generate_pdf_reportlab(text):
     try:
         buffer = io.BytesIO()
@@ -141,8 +117,6 @@ def generate_pdf_reportlab(text):
         td_style = ParagraphStyle('TD', fontName='Helvetica', fontSize=7, leading=8.5, textColor=colors.HexColor("#0F172A"))
         
         story = []
-        
-        # Logos institucionales si existen
         logo_left = "logo_liceo.png" if os.path.exists("logo_liceo.png") else None
         logo_right = "logo_studio.png" if os.path.exists("logo_studio.png") else None
         
@@ -151,13 +125,11 @@ def generate_pdf_reportlab(text):
             Paragraph("ECOSISTEMA VITAL 26 • WHITMAN STUDIO", sub_style)
         ]
         
-        header_data = [
-            [
-                RLImage(logo_left, width=50, height=50) if logo_left else "",
-                header_text,
-                RLImage(logo_right, width=50, height=50) if logo_right else ""
-            ]
-        ]
+        header_data = [[
+            RLImage(logo_left, width=50, height=50) if logo_left else "",
+            header_text,
+            RLImage(logo_right, width=50, height=50) if logo_right else ""
+        ]]
         
         header_table = Table(header_data, colWidths=[60, 420, 60])
         header_table.setStyle(TableStyle([
@@ -172,7 +144,6 @@ def generate_pdf_reportlab(text):
         story.append(Spacer(1, 8))
         
         clean_text = guillotine_clean(text)
-        clean_text = re.sub(r'```[\s\S]*?```', '', clean_text)
         clean_text = re.sub(r'[^\x00-\x7F\xC0-\xFF]+', ' ', clean_text)
         lines = clean_text.split("\n")
         i = 0
@@ -219,6 +190,7 @@ def generate_pdf_reportlab(text):
     except Exception:
         return None
 
+@st.cache_data(show_spinner=False)
 def generate_docx(text):
     try:
         clean = guillotine_clean(text)
@@ -234,7 +206,7 @@ def generate_docx(text):
                 doc.add_heading(l.replace("#", "").strip(), level=1)
             elif l.startswith("- ") or l.startswith("* "):
                 doc.add_paragraph(l[2:], style='List Bullet')
-            elif l and not l.startswith("|") and not l.startswith("```"):
+            elif l and not l.startswith("|"):
                 doc.add_paragraph(l)
         bio = io.BytesIO()
         doc.save(bio)
@@ -242,6 +214,7 @@ def generate_docx(text):
     except Exception:
         return None
 
+@st.cache_data(show_spinner=False)
 def generate_pptx(text):
     try:
         clean = guillotine_clean(text)
@@ -251,7 +224,7 @@ def generate_pptx(text):
         title_slide.placeholders[1].text = "Liceo Moderno Walt Whitman\nEcosistema Vital 26"
         sections = clean.split("##")
         for sec in sections[1:7]:
-            lines = [l.strip() for l in sec.split("\n") if l.strip() and not l.startswith("|") and not l.startswith("```")]
+            lines = [l.strip() for l in sec.split("\n") if l.strip() and not l.startswith("|")]
             if not lines:
                 continue
             slide = prs.slides.add_slide(prs.slide_layouts[1])
@@ -267,7 +240,7 @@ def generate_pptx(text):
     except Exception:
         return None
 
-# --- BIENVENIDAS DIRECTAS (3 LÍNEAS) ---
+# --- BIENVENIDAS DIRECTAS ---
 PROFILES = {
     "wq26": {
         "badge": "ADMINISTRACIÓN / INNOVACIÓN",
@@ -291,7 +264,7 @@ PROFILES = {
 
 def check_identity(text):
     clean = text.lower().strip()
-    action_words = ["crea", "haz", "diseña", "redacta", "planea", "guia", "guía", "tarjeta", "imagen"]
+    action_words = ["crea", "haz", "diseña", "redacta", "planea", "planear", "guia", "guía"]
     if any(w in clean for w in action_words) or len(clean.split()) > 4:
         return None
     if "wq26" in clean:
@@ -308,7 +281,7 @@ def check_identity(text):
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "user_role" not in st.session_state:
-    st.session_state.user_role = "Comunidad Educativa General"
+    st.session_state.user_role = "DOCENTE LICEÍSTA"
 
 # --- CABECERA PRINCIPAL ---
 st.markdown(f"""
@@ -322,7 +295,7 @@ st.markdown(f"""
 # --- BARRA LATERAL ---
 with st.sidebar:
     st.header("🏫 Acceso Rápido")
-    st.caption(f"Motor: `{model_name}`")
+    st.caption(f"Motor Activo: `{model_name}`")
     c1, c2 = st.columns(2)
     with c1:
         if st.button("👑 Walter Q."):
@@ -345,7 +318,6 @@ with st.sidebar:
     st.divider()
     if st.button("🗑️ Nueva Consulta"):
         st.session_state.messages = []
-        st.session_state.user_role = "Comunidad Educativa General"
         st.rerun()
 
 # --- HISTORIAL ---
@@ -353,9 +325,6 @@ for idx, msg in enumerate(st.session_state.messages):
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
         
-        if "image_bytes" in msg and msg["image_bytes"]:
-            st.image(msg["image_bytes"], caption="🎨 Propuesta Gráfica Generada", use_container_width=True)
-            
         if msg["role"] == "assistant" and len(msg["content"]) > 90:
             st.markdown("""
             <div style="margin-top: 15px; border-top: 1px solid #1e3a8a; padding-top: 8px;">
@@ -380,7 +349,7 @@ for idx, msg in enumerate(st.session_state.messages):
                 st.markdown('<a href="https://docs.new" target="_blank" class="docs-btn">🌐 Abrir en Google Docs</a>', unsafe_allow_html=True)
 
 # --- ENTRADA ---
-if prompt := st.chat_input("Escribe tu solicitud (ej: 'Guía de planos y ángulos de cámara para Whitman Studio 6° y 7°')..."):
+if prompt := st.chat_input("Escribe tu solicitud de planeación o consulta..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -395,48 +364,36 @@ if prompt := st.chat_input("Escribe tu solicitud (ej: 'Guía de planos y ángulo
         st.rerun()
     else:
         with st.chat_message("assistant"):
-            with st.spinner("Whitman AI está estructurando tu documento oficial..."):
-                try:
-                    p_low = prompt.lower()
-                    wants_image = any(k in p_low for k in ["imagen", "logo", "tarjeta visual", "afiche", "poster", "dibujo"])
-                    
-                    master_query = f"""
+            try:
+                master_query = f"""
 Eres Whitman AI, asistente pedagógico e institucional oficial del Liceo Moderno Walt Whitman (Bogotá, Villa Mayor) y Whitman Studio.
 Entrenado por Walter Quintero (Coord. Innovación y Tecnología).
-Rol del usuario: {st.session_state.user_role}
+Rol: {st.session_state.user_role}
 
-REGLAS CRÍTICAS:
-1. Comienza DIRECTAMENTE con el título del documento en la primera línea.
-2. Queda ESTRICTAMENTE PROHIBIDO generar notas preliminares, "Identity:", "Training:", "Context:", "User Request:", "Audience:" o cualquier borrador previo en inglés.
-3. Si piden imágenes: describe el concepto y no envíes al usuario a DALL-E ni herramientas externas.
-4. Si piden planeaciones: estructura DBA, tiempos de 40-45 min, páginas del libro y PIAR.
-5. Usa tablas formateadas con columnas claras siempre que sea necesario.
-
-Finaliza con:
----
-> "El arte de la educación es el arte de despertar la curiosidad." — Walt Whitman
-Resultados potenciados por Whitman AI | Entrenado por: Walter Quintero (Coord. Innovación y Tecnología)
+REGLAS:
+1. Comienza DIRECTAMENTE con la planeación o documento solicitado. Cero notas previas en inglés.
+2. Si es Ciudadanos del Mundo / English / Science: Redacta en inglés técnico bajo formato de matriz bilingüe 70/30, ODS y PIAR.
+3. Si son áreas no bilingües: 40-45 minutos, DBA Colombia/Bogotá, articulación con el libro y PIAR.
+4. Cierre obligatorio institucional.
 
 SOLICITUD:
 {prompt}
 """
-                    res = active_model.generate_content(master_query)
-                    raw_answer = res.text.strip()
-                    clean_answer = guillotine_clean(raw_answer)
-                    
-                    img_data = None
-                    if wants_image:
-                        img_data = generate_image_google(prompt, api_key)
-                    
-                    st.markdown(clean_answer)
-                    if img_data:
-                        st.image(img_data, caption="🎨 Ilustración Generada Oficial", use_container_width=True)
-                        
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": clean_answer,
-                        "image_bytes": img_data
-                    })
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error al procesar: {str(e)}")
+                # MODO STREAMING (ESCRITURA EN VIVO INMEDIATA)
+                response = active_model.generate_content(master_query, stream=True)
+                
+                def stream_chunks():
+                    for chunk in response:
+                        if chunk.text:
+                            yield chunk.text
+
+                raw_answer = st.write_stream(stream_chunks())
+                clean_answer = guillotine_clean(raw_answer)
+                
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": clean_answer
+                })
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error al procesar: {str(e)}")
