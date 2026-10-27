@@ -3,8 +3,6 @@ import google.generativeai as genai
 import io
 import os
 import re
-import requests
-import base64
 from docx import Document
 from pptx import Presentation
 from reportlab.lib.pagesizes import letter
@@ -81,9 +79,15 @@ if not api_key:
 
 genai.configure(api_key=api_key)
 
-# Modelo directo
-model_name = "models/gemini-3.8-flash"
-active_model = genai.GenerativeModel(model_name, generation_config={"temperature": 0.2})
+# Lista de modelos con cuota amplia (1.500 peticiones diarias)
+AVAILABLE_MODELS = [
+    "gemini-2.0-flash",
+    "models/gemini-2.0-flash",
+    "gemini-1.5-pro",
+    "models/gemini-1.5-pro",
+    "gemini-1.5-flash-8b",
+    "models/gemini-1.5-flash-8b"
+]
 
 # --- FILTRO DE METADATOS ---
 def guillotine_clean(text):
@@ -101,7 +105,7 @@ def guillotine_clean(text):
     clean_text = "\n".join(lines[start_index:]).strip()
     return clean_text if clean_text else text.strip()
 
-# --- GENERADORES EN CACHÉ (ULTRARRÁPIDOS) ---
+# --- GENERADORES EN CACHÉ ---
 @st.cache_data(show_spinner=False)
 def generate_pdf_reportlab(text):
     try:
@@ -124,7 +128,6 @@ def generate_pdf_reportlab(text):
             Paragraph("LICEO MODERNO WALT WHITMAN", title_style),
             Paragraph("ECOSISTEMA VITAL 26 • WHITMAN STUDIO", sub_style)
         ]
-        
         header_data = [[
             RLImage(logo_left, width=50, height=50) if logo_left else "",
             header_text,
@@ -244,21 +247,21 @@ def generate_pptx(text):
 PROFILES = {
     "wq26": {
         "badge": "ADMINISTRACIÓN / INNOVACIÓN",
-        "welcome": "👋 ¡Hola Walter! Centro de Control y Whitman Studio activo. ¿En qué proyecto, planeación o circular trabajamos hoy?"
+        "welcome": "👋 ¡Hola Walter! Centro de Control activo. ¿En qué planeación, circular o proyecto de Whitman Studio trabajamos hoy?"
     },
     "docente": {
         "badge": "DOCENTE LICEÍSTA",
         "welcome": """👋 ¡Bienvenido/a profe! Tu entorno de planeación está listo.
 👉 Fórmula rápida: `planear/[grado]/[área]/[tema]/[sesiones]/`
-¿Qué clase o proyecto preparamos hoy?"""
+¿Qué clase preparamos hoy?"""
     },
     "sena": {
         "badge": "APRENDIZ SENA",
-        "welcome": "🎨 ¡Hola Aprendiz! Laboratorio de Illustrator y Proyectos listo. ¿Revisamos tu Buyer Persona, Reto 5 o una guía técnica?"
+        "welcome": "🎨 ¡Hola Aprendiz! Laboratorio de Illustrator listo. ¿Revisamos tu Buyer Persona, Reto 5 o una guía técnica?"
     },
     "padre": {
         "badge": "PADRES DE FAMILIA",
-        "welcome": "🏡 ¡Bienvenidos Padres y Madres Liceístas! Espacio de orientación escolar. ¿En qué información sobre eventos o convivencia les colaboro?"
+        "welcome": "🏡 ¡Bienvenidos Padres y Madres Liceístas! Espacio escolar. ¿En qué información o evento les colaboro?"
     }
 }
 
@@ -295,7 +298,7 @@ st.markdown(f"""
 # --- BARRA LATERAL ---
 with st.sidebar:
     st.header("🏫 Acceso Rápido")
-    st.caption(f"Motor Activo: `{model_name}`")
+    st.caption("Motor con relevo automático de 1.500 consultas/día")
     c1, c2 = st.columns(2)
     with c1:
         if st.button("👑 Walter Q."):
@@ -348,7 +351,7 @@ for idx, msg in enumerate(st.session_state.messages):
             with b4:
                 st.markdown('<a href="https://docs.new" target="_blank" class="docs-btn">🌐 Abrir en Google Docs</a>', unsafe_allow_html=True)
 
-# --- ENTRADA ---
+# --- ENTRADA CON RELEVO AUTOMÁTICO DE MODELOS ---
 if prompt := st.chat_input("Escribe tu solicitud de planeación o consulta..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -364,8 +367,7 @@ if prompt := st.chat_input("Escribe tu solicitud de planeación o consulta..."):
         st.rerun()
     else:
         with st.chat_message("assistant"):
-            try:
-                master_query = f"""
+            master_query = f"""
 Eres Whitman AI, asistente pedagógico e institucional oficial del Liceo Moderno Walt Whitman (Bogotá, Villa Mayor) y Whitman Studio.
 Entrenado por Walter Quintero (Coord. Innovación y Tecnología).
 Rol: {st.session_state.user_role}
@@ -379,21 +381,31 @@ REGLAS:
 SOLICITUD:
 {prompt}
 """
-                # MODO STREAMING (ESCRITURA EN VIVO INMEDIATA)
-                response = active_model.generate_content(master_query, stream=True)
-                
-                def stream_chunks():
-                    for chunk in response:
-                        if chunk.text:
-                            yield chunk.text
+            # SISTEMA DE RELEVO: Prueba modelos con 1.500 consultas hasta que uno responda
+            success = False
+            for model_candidate in AVAILABLE_MODELS:
+                try:
+                    m = genai.GenerativeModel(model_candidate, generation_config={"temperature": 0.2})
+                    response = m.generate_content(master_query, stream=True)
+                    
+                    def stream_chunks():
+                        for chunk in response:
+                            if chunk.text:
+                                yield chunk.text
 
-                raw_answer = st.write_stream(stream_chunks())
-                clean_answer = guillotine_clean(raw_answer)
-                
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": clean_answer
-                })
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error al procesar: {str(e)}")
+                    raw_answer = st.write_stream(stream_chunks())
+                    clean_answer = guillotine_clean(raw_answer)
+                    
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": clean_answer
+                    })
+                    success = True
+                    st.rerun()
+                    break
+                except Exception:
+                    # Si un modelo está saturado (429), salta al siguiente de inmediato
+                    continue
+                    
+            if not success:
+                st.error("Todos los servidores de Google están en alta demanda en este instante. Por favor espera 1 minuto y reintenta.")
