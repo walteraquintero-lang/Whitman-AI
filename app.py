@@ -83,15 +83,26 @@ genai.configure(api_key=api_key)
 
 # Cargar modelo activo con validación
 @st.cache_resource
+# --- CONEXIÓN AUTOMÁTICA AL MODELO ACTIVO DE TU CUENTA ---
+@st.cache_resource
 def load_llm():
-    for name in ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]:
-        try:
-            m = genai.GenerativeModel(name)
-            m.generate_content("ok")
-            return name, m
-        except Exception:
-            continue
-    return "gemini-1.5-flash", genai.GenerativeModel("gemini-1.5-flash")
+    # 1. Le pedimos a Google la lista de modelos que tu clave tiene permitidos
+    available = []
+    try:
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                available.append(m.name)
+    except Exception:
+        pass
+    
+    # 2. Si encontró modelos, toma el primero disponible (así nunca dará 404)
+    if available:
+        chosen = available[0]
+        return chosen, genai.GenerativeModel(chosen)
+    
+    # Respaldo por si la lista viene vacía
+    backup = "models/gemini-2.0-flash"
+    return backup, genai.GenerativeModel(backup)
 
 model_name, active_model = load_llm()
 
